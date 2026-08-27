@@ -114,7 +114,7 @@ body {
 .start-footer-text { margin-top: 12px; font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.6); }
 .hidden { display: none !important; }
 
-/* 📱 Main App Container */
+/* Main App Container */
 #app { 
   background-color: #4a752c; 
   display: flex; 
@@ -124,7 +124,7 @@ body {
   box-sizing: border-box;
 }
 
-/* 📱 Mobile Mode (Strictly 9:16 Aspect Ratio) */
+/* 📱 Mobile Mode (9:16 Aspect Ratio) */
 body.mobile-mode #app { 
   aspect-ratio: 9 / 16;
   height: 100dvh;
@@ -159,17 +159,17 @@ body.pc-mode #app {
   background: #4a752c;
   display: flex;
   justify-content: center;
-  gap: 50px;
+  gap: 60px;
   align-items: center;
-  padding: 6px;
-  margin-bottom: 2px;
+  padding: 8px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
-.google-bar-item { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 900; color: #fff; }
-.bar-val { font-size: 19px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.google-bar-item { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 900; color: #fff; }
+.bar-val { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
-/* 🟩 Play Ground Layout (Placed in the Upper-Middle Area) */
+/* 🟩 Play Ground Layout (Moved slightly down towards center) */
 .game-content-layout { 
   flex: 1; 
   width: 100%; 
@@ -178,14 +178,14 @@ body.pc-mode #app {
   display: flex; 
   flex-direction: column;
   align-items: center; 
-  justify-content: flex-start; /* একদম মাঝখানে না রেখে ওপরের দিকে সেট করা */
-  padding-top: 14px; /* ওপর থেকে সামান্য গ্যাপ দিয়ে আপার-মিডল পজিশন */
+  justify-content: flex-start;
+  padding-top: 55px; /* খেলার মাঠটি কিছুটা নিচে নামানো হয়েছে */
 }
 
 .arena-container { 
   width: 100%;
   max-width: 100%;
-  aspect-ratio: 1 / 1; /* পারফেক্ট স্কয়ার শেপ */
+  aspect-ratio: 1 / 1;
   position: relative; 
   display: flex;
   justify-content: center;
