@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Autonomous AI Snake Simulator Pro</title>
+  <title>Google Play Style AI Snake Pro</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -23,13 +23,13 @@
   <!-- Start Screen with Minutes Selector -->
   <div id="start-screen" class="overlay-screen hidden">
     <div class="start-box">
-      <div class="start-flags-row">🐍 🍎 ⚡ 💎 👑 🌟</div>
-      <h1 class="start-title">CYBER AI SNAKE SIMULATOR</h1>
+      <div class="start-flags-row">🍎 🐍 🏆 ⏱️ 🍇 🌟</div>
+      <h1 class="start-title">GOOGLE STYLE AI SNAKE</h1>
       <div class="start-underline"></div>
       
       <!-- ⏱️ মিনিট সিলেক্টর -->
       <div class="rounds-selector-box">
-        <div class="rounds-label">SELECT SIMULATION DURATION:</div>
+        <div class="rounds-label">SELECT GAME DURATION:</div>
         <div class="rounds-btn-group">
           <button type="button" class="round-btn" onclick="setSimulationMinutes(1, this)">1 MIN</button>
           <button type="button" class="round-btn" onclick="setSimulationMinutes(3, this)">3 MIN</button>
@@ -42,13 +42,12 @@
 
       <!-- 🎵 ব্যাকগ্রাউন্ড মিউজিক সেটিংস -->
       <div class="music-settings-box">
-        <div class="music-label">🎶 BACKGROUND MUSIC:</div>
+        <div class="music-label">🎶 SOUND & MUSIC:</div>
         <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
-          <option value="cyber">⚡ Neon Cyberpunk Energy</option>
-          <option value="synth">🎵 Procedural Marimba Beat</option>
-          <option value="arcade">🕹️ Retro 8-Bit Arcade Beat</option>
-          <option value="suspense">🔥 Intense Suspense Drone</option>
-          <option value="custom">🔗 Custom MP3 / GitHub Stream URL</option>
+          <option value="google">🕹️ Google Arcade Pop Beat (Default)</option>
+          <option value="cyber">⚡ Cyber Glow Beat</option>
+          <option value="synth">🎵 Procedural Marimba Synth</option>
+          <option value="custom">🔗 Custom MP3 Link</option>
         </select>
 
         <div id="customMusicInputWrapper" class="custom-music-wrapper hidden">
@@ -56,7 +55,7 @@
         </div>
 
         <div class="volume-slider-row">
-          <span class="vol-icon">🔊 VOLUME:</span>
+          <span class="vol-icon">🔊 SOUND VOL:</span>
           <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.85" oninput="changeVolume(this.value)" />
           <span id="volumeValueText" class="vol-percent">85%</span>
         </div>
@@ -64,43 +63,51 @@
 
       <label class="fullscreen-option">
         <input type="checkbox" id="fullscreenToggle" checked />
-        <span>🖥️ Launch in Fullscreen</span>
+        <span>🖥️ Fullscreen Mode</span>
       </label>
 
       <button class="start-battle-btn" onclick="beginBattle()">
-        <span class="play-icon">▶</span> START AI SIMULATION
+        <span class="play-icon">▶</span> START GOOGLE AI SNAKE
       </button>
 
-      <div class="start-footer-text">100% SELF-DRIVING AI · CONTINUOUS RUNS</div>
+      <div class="start-footer-text">AUTONOMOUS HUNT · RETRIES UNTIL TIME ENDS</div>
     </div>
   </div>
 
   <!-- Main Game UI -->
   <div id="app" class="hidden">
-    <header class="top-header">
-      <div class="title" id="mainTitle">🐍 CYBER AI SNAKE</div>
-      <div class="subtitle" id="subTitle">
-        <span>CYCLE</span> <span id="cycleText" style="color:#00ff66;">#1</span> ⏱ TIME LEFT: <span id="timerText" style="color:#ffd23f;">05:00</span>
+    <!-- Google Snake Style Top Bar -->
+    <header class="google-top-bar">
+      <div class="google-bar-item">
+        <span class="bar-icon">🍎</span>
+        <span class="bar-val" id="topAppleCount">0</span>
+      </div>
+      <div class="google-bar-item">
+        <span class="bar-icon">🏆</span>
+        <span class="bar-val" id="topBestCount">0</span>
+      </div>
+      <div class="google-bar-item">
+        <span class="bar-icon">⏱️</span>
+        <span class="bar-val" id="timerText">05:00</span>
       </div>
     </header>
 
     <div class="game-content-layout">
-      <!-- 📊 SNAKE TELEMETRY & LIVE STATS BOARD -->
+      <!-- 📊 SNAKE TELEMETRY & STATS BOARD -->
       <div class="qualified-board">
-        <div class="board-title">SNAKE TELEMETRY & STATS</div>
+        <div class="board-title">SNAKE STATS DASHBOARD</div>
         
         <div class="snake-stats-container">
-          
           <!-- 🟢 বর্তমান রানিং স্ট্যাটাস -->
           <div class="stat-card current-run-card">
-            <div class="stat-card-badge">🟢 CURRENT RUN (লাইভ)</div>
+            <div class="stat-card-badge">🟢 CURRENT RUN (LIVE)</div>
             <div class="stat-grid-2">
               <div class="stat-box">
                 <span class="stat-label">🐍 LENGTH</span>
-                <span class="stat-number neon-green" id="liveLength">3</span>
+                <span class="stat-number neon-blue" id="liveLength">3</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">🍎 FOOD EATEN</span>
+                <span class="stat-label">🍎 FOOD</span>
                 <span class="stat-number neon-yellow" id="liveFood">0</span>
               </div>
             </div>
@@ -108,14 +115,14 @@
 
           <!-- 🔴 আগের রাউন্ডের ফলাফল (বড় করে দেখানো) -->
           <div class="stat-card last-run-card">
-            <div class="stat-card-badge red-badge">💀 PREVIOUS ROUND DEATH STATS</div>
+            <div class="stat-card-badge red-badge">💀 PREVIOUS ROUND DIED AT</div>
             <div class="stat-grid-2">
               <div class="stat-box">
-                <span class="stat-label">📏 DIED AT LENGTH</span>
+                <span class="stat-label">📏 DIED LENGTH</span>
                 <span class="stat-number-big neon-red" id="prevLength">--</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">🍗 FOOD BEFORE DIE</span>
+                <span class="stat-label">🍎 DIED FOOD</span>
                 <span class="stat-number-big neon-red" id="prevFood">--</span>
               </div>
             </div>
@@ -124,24 +131,23 @@
 
           <!-- 👑 সর্বকালের সেরা রেকর্ড -->
           <div class="stat-card best-run-card">
-            <div class="stat-card-badge blue-badge">👑 ALL-TIME BEST IN SESSION</div>
+            <div class="stat-card-badge blue-badge">👑 SESSION BEST RECORD</div>
             <div class="stat-grid-2">
               <div class="stat-box">
                 <span class="stat-label">MAX LENGTH</span>
-                <span class="stat-number neon-blue" id="bestLength">3</span>
+                <span class="stat-number neon-gold" id="bestLength">3</span>
               </div>
               <div class="stat-box">
                 <span class="stat-label">MAX FOOD</span>
-                <span class="stat-number neon-blue" id="bestFood">0</span>
+                <span class="stat-number neon-gold" id="bestFood">0</span>
               </div>
             </div>
           </div>
-
         </div>
         
         <div class="board-footer">
-          <span class="rounds-status" id="totalDeathsText">TOTAL RESPAWNS: 0</span>
-          <span class="final-countdown" id="totalFoodEatenText">SESSION FOOD: 0</span>
+          <span class="rounds-status" id="totalDeathsText">DEATHS: 0</span>
+          <span class="final-countdown" id="cycleCountText">CYCLE: #1</span>
         </div>
       </div>
 
@@ -153,29 +159,29 @@
           <canvas id="confettiCanvas"></canvas>
 
           <div class="round-winner-text" id="winnerHeading">SIMULATION COMPLETE</div>
-          <div class="winner-flag-box" id="winnerFlagBox">🐍</div>
+          <div class="winner-flag-box" id="winnerFlagBox">🍎</div>
 
           <div id="podiumContainer" class="podium-container hidden">
-            <div class="celebration-badge">🎊 FINAL SESSION REPORT 🎊</div>
+            <div class="celebration-badge">🎊 FINAL SESSION SUMMARY 🎊</div>
             
             <div class="podium-card gold">
-              <span class="podium-badge">👑 LONGEST SNAKE ACHIEVED 👑</span>
+              <span class="podium-badge">👑 HIGHEST SCORE 👑</span>
               <div class="podium-name" id="podium1Name">Length: 0 | Food: 0</div>
             </div>
             
             <div class="podium-sub-grid">
               <div class="podium-card silver">
                 <span class="podium-badge">⚡ TOTAL RESPAWNS</span>
-                <div class="podium-name" id="podium2Name">0 Cycles</div>
+                <div class="podium-name" id="podium2Name">0 Runs</div>
               </div>
               <div class="podium-card bronze">
-                <span class="podium-badge">🍎 TOTAL FOOD</span>
+                <span class="podium-badge">🍎 TOTAL APPLES</span>
                 <div class="podium-name" id="podium3Name">0 Eaten</div>
               </div>
             </div>
 
             <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
-              🔄 SIMULATE AGAIN
+              🔄 PLAY AGAIN
             </button>
           </div>
         </div>
