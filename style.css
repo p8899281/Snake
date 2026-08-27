@@ -15,7 +15,7 @@
 }
 
 body { 
-  background-color: #2d4818; 
+  background-color: #243b14; 
   color: var(--text-main); 
   display: flex; 
   justify-content: center; 
@@ -114,87 +114,97 @@ body {
 .start-footer-text { margin-top: 12px; font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.6); }
 .hidden { display: none !important; }
 
-/* Main App Container */
+/* 📱 Main App Container */
 #app { 
   background-color: #4a752c; 
   display: flex; 
   flex-direction: column; 
-  padding: 8px; 
   position: relative; 
   box-sizing: border-box;
 }
 
-/* 📱 Mobile Mode (9:16 Aspect Ratio) */
+/* 📱 1. Mobile Mode (Portrait 9:16 / 1080x1920) */
 body.mobile-mode #app { 
   aspect-ratio: 9 / 16;
   height: 100dvh;
   max-width: calc(100dvh * (9 / 16));
   width: 100%;
   margin: auto;
-  border-left: 2px solid #223712;
-  border-right: 2px solid #223712;
+  border-left: 2px solid #1a2c0d;
+  border-right: 2px solid #1a2c0d;
 }
 
-/* 📟 Tablet Mode */
+/* 📟 2. Tablet Mode (Landscape 16:9 / 1920x1080) */
 body.tablet-mode #app { 
   aspect-ratio: 16 / 9;
   width: 100vw;
   max-height: calc(100vw * (9 / 16));
   height: 100dvh;
   margin: auto;
-  border: 2px solid #223712;
+  border: 2px solid #1a2c0d;
 }
 
-/* 💻 PC Mode */
+/* 💻 3. PC Mode (Auto-Fit Responsive) */
 body.pc-mode #app { 
-  max-width: 650px; 
-  height: 96dvh; 
+  width: 100vw; 
+  height: 100dvh; 
   margin: auto; 
-  border-radius: 14px;
-  border: 2px solid #223712;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  border: none;
 }
 
-.google-top-bar {
-  background: #4a752c;
-  display: flex;
-  justify-content: center;
-  gap: 60px;
-  align-items: center;
-  padding: 8px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
-.google-bar-item { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 900; color: #fff; }
-.bar-val { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-
-/* 🟩 Play Ground Layout (Moved slightly down towards center) */
+/* 🟩 Game Layout (Centered Arena) */
 .game-content-layout { 
   flex: 1; 
   width: 100%; 
   height: 100%; 
   overflow: hidden; 
   display: flex; 
-  flex-direction: column;
+  justify-content: center;
   align-items: center; 
-  justify-content: flex-start;
-  padding-top: 55px; /* খেলার মাঠটি কিছুটা নিচে নামানো হয়েছে */
+  padding: 12px;
 }
 
+.playground-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: min(88vw, 80vh);
+}
+
+/* 🍎 স্কোরবোর্ড (প্লে-গ্রাউন্ডের ঠিক ওপরে সংযুক্ত) */
+.google-top-bar {
+  width: 100%;
+  background: #3b5f20;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 14px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  border-bottom: 2px solid #2d4818;
+}
+
+.google-bar-item { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 900; color: #fff; }
+.bar-val { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+/* স্কয়ার এরিনা */
 .arena-container { 
   width: 100%;
-  max-width: 100%;
   aspect-ratio: 1 / 1;
   position: relative; 
   display: flex;
   justify-content: center;
   align-items: center;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
 }
 
 canvas { display: block; width: 100%; height: 100%; }
 
-.winner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; border-radius: 8px; }
+.winner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
 .round-winner-text { color: #ffd23f; font-size: 20px; font-weight: 900; margin-bottom: 8px; }
 .winner-flag-box { font-size: 44px; margin-bottom: 12px; }
 .podium-card { background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px; width: 80%; text-align: center; border: 1.5px solid #ffd700; }
