@@ -82,7 +82,7 @@ body {
 .music-label { font-size: 11px; font-weight: 800; color: #ffd23f; }
 .bgm-dropdown, .custom-music-input { width: 100%; background: #243a13; color: #fff; border: 1px solid #87c34b; padding: 7px; border-radius: 8px; font-size: 12px; outline: none; }
 .volume-slider-row { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; }
-.volume-slider-row input { flex: 1; accent-color: #ffd23f; cursor: pointer; }
+.volume-slider-row input { flex: 1; accent-color: #ffd23f; }
 .vol-percent { min-width: 32px; text-align: right; color: var(--theme-yellow); }
 
 .fullscreen-option {
@@ -174,21 +174,98 @@ body.pc-mode #app {
   max-width: min(90vw, 72vh);
 }
 
-/* 🍎 স্কোরবোর্ড */
+/* 🍎 স্কোরবোর্ড ও মাঝের SUBSCRIBE বাটন */
 .google-top-bar {
   width: 100%;
   background: #3b5f20;
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
-  padding: 8px 14px;
+  padding: 6px 12px;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
   border-bottom: 2px solid #2d4818;
 }
 
-.google-bar-item { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 900; color: #fff; }
-.bar-val { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.google-bar-item { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  font-size: 20px; 
+  font-weight: 900; 
+  color: #fff; 
+  min-width: 60px;
+}
+
+.bar-val { font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+/* 🔴 মাঝের লাল SUBSCRIBE অপশন ডিজাইন */
+.hud-subscribe-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-subscribe-btn {
+  background: #cc0000;
+  color: #ffffff;
+  padding: 5px 12px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  user-select: none;
+}
+
+.hud-subscribe-btn .yt-icon { font-size: 9px; }
+.hud-subscribe-btn .bell-icon { font-size: 11px; }
+
+.hud-subscribe-btn.clicked {
+  transform: scale(0.92);
+}
+
+.hud-subscribe-btn.subscribed {
+  background: #272727;
+  color: #aaaaaa;
+}
+
+.bell-icon.bell-ring {
+  animation: ringBell 0.4s ease infinite alternate;
+}
+
+@keyframes ringBell {
+  0% { transform: rotate(-15deg); }
+  100% { transform: rotate(15deg); }
+}
+
+/* 👆 অ্যানিমেটেড মাউস কার্সর (৩০ সেকেন্ডে এসে ক্লিক করবে) */
+.animated-mouse-cursor {
+  position: absolute;
+  right: -8px;
+  bottom: -22px;
+  font-size: 20px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px) rotate(-15deg);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 10;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+}
+
+.animated-mouse-cursor.cursor-active {
+  opacity: 1;
+  transform: translateY(0) rotate(-15deg);
+}
+
+.animated-mouse-cursor.cursor-click {
+  transform: translateY(-2px) scale(0.82) rotate(-15deg);
+}
 
 /* স্কয়ার এরিনা */
 .arena-container { 
