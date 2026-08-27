@@ -3,9 +3,7 @@
   --google-green-light: #578a34;
   --google-blue: #487ff7;
   --theme-yellow: #ffd23f;
-  --theme-red: #ff3344;
   --text-main: #ffffff;
-  --board-bg: #406824;
 }
 
 * { 
@@ -238,7 +236,7 @@ body {
   background-color: #4a752c; 
   display: flex; 
   flex-direction: column; 
-  padding: 8px 12px; 
+  padding: 6px 10px; 
   position: relative; 
 }
 
@@ -246,25 +244,26 @@ body {
 .google-top-bar {
   background: #4a752c;
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
+  gap: 40px;
   align-items: center;
   padding: 6px 12px;
   border-radius: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
 .google-bar-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 18px;
+  gap: 8px;
+  font-size: 20px;
   font-weight: 900;
   color: #ffffff;
 }
 
 .bar-val {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 900;
   color: #ffffff;
   text-shadow: 0 2px 4px rgba(0,0,0,0.3);
@@ -284,27 +283,12 @@ body.mobile-mode #app {
 body.pc-mode #app { 
   max-width: 900px; 
   width: 100%;
-  padding: 12px 16px; 
+  padding: 10px 14px; 
   border-radius: 16px; 
   border: 3px solid #2d4818; 
   margin: auto; 
   height: 96dvh;
   box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-}
-
-body.mobile-mode .game-content-layout,
-body.pc-mode .game-content-layout {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  width: 100%;
-  overflow: hidden;
-}
-
-body.mobile-mode .qualified-board,
-body.pc-mode .qualified-board {
-  width: 100%;
-  margin-bottom: 8px;
 }
 
 /* 📟 3. TABLET MODE */
@@ -315,137 +299,17 @@ body.tablet-mode #app {
   height: 100dvh;
   max-height: calc(100vw * (9 / 16));
   margin: auto;
-  padding: 10px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
   border: 3px solid #2d4818;
 }
 
-body.tablet-mode .game-content-layout {
+.game-content-layout {
   display: flex;
-  flex-direction: row;
   flex: 1;
   width: 100%;
-  gap: 12px;
-  overflow: hidden;
-}
-
-body.tablet-mode .qualified-board {
-  width: 250px;
   height: 100%;
-  flex-shrink: 0;
-}
-
-/* 📊 STATS DASHBOARD */
-.qualified-board { 
-  background: var(--board-bg); 
-  border: 2px solid #578a34; 
-  border-radius: 12px; 
-  padding: 10px; 
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
-}
-
-.board-title { 
-  text-align: center; 
-  font-weight: 900; 
-  margin-bottom: 8px; 
-  font-size: 11px; 
-  letter-spacing: 1px; 
-  color: #ffd23f; 
-}
-
-.snake-stats-container {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.stat-card {
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 8px;
-  padding: 6px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.current-run-card { border-color: #487ff7; }
-.best-run-card { border-color: #ffd23f; }
-
-/* 🔴 LAST RUN DEATH CARD (বড় ও উজ্জ্বল) */
-.last-run-card {
-  border: 2px solid #ff3344;
-  background: rgba(255, 51, 68, 0.15);
-}
-
-.stat-card-badge {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  color: #87c34b;
-  margin-bottom: 3px;
-}
-
-.stat-card-badge.red-badge { color: #ff6677; }
-.stat-card-badge.blue-badge { color: #ffd23f; }
-
-.stat-grid-2 {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  gap: 6px;
-}
-
-.stat-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-}
-
-.stat-label {
-  font-size: 9px;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 2px;
-}
-
-.stat-number {
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.stat-number-big {
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-
-.neon-blue { color: #487ff7; }
-.neon-yellow { color: #ffd23f; }
-.neon-red { color: #ff3344; text-shadow: 0 0 10px rgba(255,51,68,0.8); }
-.neon-gold { color: #ffd23f; }
-
-.prev-run-footer {
-  font-size: 9px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-  margin-top: 4px;
-  border-top: 1px dashed rgba(255, 51, 68, 0.4);
-  padding-top: 3px;
-}
-
-.board-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px dashed #578a34;
-  font-size: 10px;
-  font-weight: 800;
-  color: #ffd23f;
 }
 
 .arena-container { 
@@ -457,7 +321,7 @@ body.tablet-mode .qualified-board {
   width: 100%;
   height: 100%;
   overflow: hidden; 
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 canvas { 
