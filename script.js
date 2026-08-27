@@ -21,6 +21,8 @@ let selectedDeviceMode = 'mobile';
 let SIMULATION_MINUTES = 5;
 let simulationTotalSeconds = 5 * 60;
 let simulationStartTime = 0;
+
+// 🔢 সঠিক স্কোর ট্র্যাকিং
 let currentRunFood = 0;
 let maxFoodSingleRun = 0;
 
@@ -31,7 +33,7 @@ function setSimulationMinutes(mins, btnElement) {
   if (btnElement) btnElement.classList.add("active");
 }
 
-// 🟩 স্কয়ার গ্রিড কনফিগারেশন (13x13 Grid)
+// 🟩 স্কয়ার গ্রিড (13x13 Grid)
 const GRID_SIZE = 13;
 let cols = GRID_SIZE, rows = GRID_SIZE;
 let cellSize = 24;
@@ -40,9 +42,9 @@ let squareArenaSize = 0;
 
 let snake = [];
 let direction = { x: 1, y: 0 };
-let food = { x: 9, y: 4, emoji: "🌶️" };
+let food = { x: 9, y: 4, emoji: "🍎" };
 let lastMoveTime = 0;
-let moveSpeedMs = 70; // পারফেক্ট মুভমেন্ট স্পিড
+let moveSpeedMs = 70;
 
 // 🔊 অডিও সিস্টেম
 let audioCtx = null;
@@ -139,7 +141,6 @@ function playSound(type) {
   } catch (e) {}
 }
 
-// 🖥️ ফুলস্ক্রিন ফাংশন
 async function triggerFullscreen() {
   const docEl = document.documentElement;
   try {
@@ -186,7 +187,6 @@ function beginBattle() {
   requestAnimationFrame(gameLoop);
 }
 
-// 📏 আপার-মিডল স্কয়ার প্লে-গ্রাউন্ড রিসাইজিং
 function resizeCanvas() {
   if (!canvas) return;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -204,22 +204,26 @@ function resizeCanvas() {
   offsetY = Math.floor((viewHeight - squareArenaSize) / 2);
 }
 
+// 🔄 মারা গেলে ছোট সাইজে (৩ ব্লক) নতুন করে শুরু
 function initSnakeCycle() {
-  // স্ক্রিনশটের মতো সুন্দর দীর্ঘ স্নেক শুরু
+  const startX = 3;
+  const startY = Math.floor(GRID_SIZE / 2);
+  
+  // ছোট লেন্থ দিয়ে শুরু
   snake = [
-    { x: 6, y: 1 }, { x: 5, y: 1 }, { x: 4, y: 1 }, { x: 3, y: 1 }, { x: 2, y: 1 },
-    { x: 1, y: 1 }, { x: 1, y: 2 }, { x: 1, y: 3 }, { x: 1, y: 4 }, { x: 1, y: 5 },
-    { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 }, { x: 4, y: 4 }, { x: 4, y: 3 },
-    { x: 3, y: 3 }, { x: 2, y: 3 }, { x: 2, y: 2 }, { x: 3, y: 2 }
+    { x: startX, y: startY },
+    { x: startX - 1, y: startY },
+    { x: startX - 2, y: startY }
   ];
   
   direction = { x: 1, y: 0 };
+  currentRunFood = 0; // কারেন্ট রান স্কোর ০ তে রিসেট
   spawnFood();
   updateHUD();
 }
 
 function spawnFood() {
-  const foodEmojis = ["🌶️", "🍎", "🍇", "🌟"];
+  const foodEmojis = ["🍎", "🌶️", "🍇", "🌟"];
   const chosenEmoji = foodEmojis[Math.floor(Math.random() * foodEmojis.length)];
   
   let emptyCells = [];
@@ -234,7 +238,7 @@ function spawnFood() {
   }
 }
 
-// 🤖 স্মার্ট সারভাইভাল ও স্পেস ফিলিং AI (সহজে মারা যাবে না)
+// 🤖 স্মার্ট সারভাইভাল ও প্যাটার্ন AI
 function getNextAIMove() {
   const head = snake[0];
   const tail = snake[snake.length - 1];
@@ -262,7 +266,7 @@ function getNextAIMove() {
     return null;
   }
 
-  // ১. খাবারের পথ খোঁজা এবং নিজেকে ফাঁদে না ফেলার ভার্চুয়াল টেস্ট
+  // ১. খাবারের পথ খোঁজা ও ভার্চুয়াল সেফটি চেক
   const pathToFood = findPath(head, food, snake);
   if (pathToFood && pathToFood.length > 0) {
     const virtualSnake = [...snake];
@@ -276,11 +280,11 @@ function getNextAIMove() {
 
     const pathToTailAfterFood = findPath(vHead, virtualSnake[virtualSnake.length - 1], virtualSnake);
     if (pathToTailAfterFood) {
-      return pathToFood[0]; // নিরাপদ হলে খাদ্যের দিকে যাবে
+      return pathToFood[0];
     }
   }
 
-  // ২. বড় প্যাটার্ন তৈরি করে বেঁচে থাকার পথ (লেজ অনুসরণ করা)
+  // ২. লেজ অনুসরন করে বড় স্পেস ফিলিং প্যাটার্ন তৈরি
   const pathToTail = findPath(head, tail, snake);
   if (pathToTail && pathToTail.length > 0) {
     let bestDir = pathToTail[0];
@@ -301,7 +305,7 @@ function getNextAIMove() {
     return bestDir;
   }
 
-  // ৩. অল্টারনেট নিরাপদ পদক্ষেপ
+  // ৩. বিকল্প নিরাপদ পদক্ষেপ
   for (let d of dirs) {
     const nx = head.x + d.x, ny = head.y + d.y;
     if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
@@ -337,9 +341,16 @@ function countFreeSpaces(startPos) {
 
 function handleSnakeDeath() {
   playSound("die");
-  if (currentRunFood > maxFoodSingleRun) maxFoodSingleRun = currentRunFood;
+  // মৃত্যুর সময় যদি বর্তমান রান হাই স্কোরকে টপকে যায় তবে হাই স্কোর সেভ হবে
+  if (currentRunFood > maxFoodSingleRun) {
+    maxFoodSingleRun = currentRunFood;
+  }
   updateHUD();
-  setTimeout(() => { if (isPlaying) initSnakeCycle(); }, 400);
+  
+  // ছোট থেকে রিস্টার্ট
+  setTimeout(() => { 
+    if (isPlaying) initSnakeCycle(); 
+  }, 400);
 }
 
 function updateSnakePhysics() {
@@ -353,9 +364,12 @@ function updateSnakePhysics() {
 
   snake.unshift(newHead);
 
+  // খাবার খেলে সঠিক কাউন্ট বাড়বে
   if (newHead.x === food.x && newHead.y === food.y) {
     currentRunFood++;
-    if (currentRunFood > maxFoodSingleRun) maxFoodSingleRun = currentRunFood;
+    if (currentRunFood > maxFoodSingleRun) {
+      maxFoodSingleRun = currentRunFood;
+    }
     playSound("eat");
     spawnFood();
   } else {
@@ -384,23 +398,26 @@ function restartTournament() {
   isPlaying = false;
 }
 
-// 🎨 রেন্ডারিং (স্ক্রিনশটের মতো স্মুথ রিবন ব্লু স্নেক)
+// 🎨 রেন্ডারিং
 function gameLoop(time) {
   if (!isPlaying || !ctx) return;
 
   const elapsed = (Date.now() - simulationStartTime) / 1000;
-  if (simulationTotalSeconds - elapsed <= 0) { endTournament(); return; }
+  if (simulationTotalSeconds - elapsed <= 0) { 
+    endTournament(); 
+    return; 
+  }
 
   if (time - lastMoveTime > moveSpeedMs) {
     updateSnakePhysics();
     lastMoveTime = time;
   }
 
-  // ১. বাইরের ব্যাকগ্রাউন্ড
+  // ১. ব্যাকগ্রাউন্ড
   ctx.fillStyle = "#4a752c";
   ctx.fillRect(0, 0, viewWidth, viewHeight);
 
-  // ২. ডুয়াল গ্রিন চেকারবোর্ড গ্রাস ফিল্ড
+  // ২. ডুয়াল গ্রিন চেকারবোর্ড মাঠ
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       ctx.fillStyle = (r + c) % 2 === 0 ? "#8ad44a" : "#7ec841";
@@ -408,7 +425,7 @@ function gameLoop(time) {
     }
   }
 
-  // ৩. খাদ্য (মরিচ/ফল)
+  // ৩. খাদ্য
   const fx = offsetX + food.x * cellSize + cellSize / 2;
   const fy = offsetY + food.y * cellSize + cellSize / 2;
   ctx.font = `${Math.floor(cellSize * 0.85)}px system-ui`;
@@ -416,11 +433,10 @@ function gameLoop(time) {
   ctx.textBaseline = "middle";
   ctx.fillText(food.emoji, fx, fy);
 
-  // ৪. ব্লু রিবন স্নেক বডি (স্মুথ রাউন্ডেড ও বর্ডার শ্যাডো সহ)
+  // ৪. ব্লু রিবন স্নেক বডি
   if (snake.length > 1) {
     const strokeW = cellSize * 0.76;
 
-    // গাঢ় নীল বর্ডার শ্যাডো
     ctx.beginPath();
     ctx.strokeStyle = "#2b56bf";
     ctx.lineWidth = strokeW + 4;
@@ -435,14 +451,13 @@ function gameLoop(time) {
     }
     ctx.stroke();
 
-    // মেইন ব্রাইট ব্লু পাইপ বডি
     ctx.beginPath();
     ctx.strokeStyle = "#3f78fc";
     ctx.lineWidth = strokeW;
     ctx.stroke();
   }
 
-  // ৫. স্নেক হেড ও কার্টুন চোখ
+  // ৫. হেড ও চোখ
   const head = snake[0];
   const hx = offsetX + head.x * cellSize + cellSize / 2;
   const hy = offsetY + head.y * cellSize + cellSize / 2;
@@ -456,24 +471,22 @@ function gameLoop(time) {
   const pupilR = cellSize * 0.08;
   let lx = hx, ly = hy, rx = hx, ry = hy;
 
-  if (direction.x === 1) { // Right
+  if (direction.x === 1) {
     lx = hx + 4; ly = hy - 6; rx = hx + 4; ry = hy + 6;
-  } else if (direction.x === -1) { // Left
+  } else if (direction.x === -1) {
     lx = hx - 4; ly = hy - 6; rx = hx - 4; ry = hy + 6;
-  } else if (direction.y === 1) { // Down
+  } else if (direction.y === 1) {
     lx = hx - 6; ly = hy + 4; rx = hx + 6; ry = hy + 4;
-  } else { // Up
+  } else {
     lx = hx - 6; ly = hy - 4; rx = hx + 6; ry = hy - 4;
   }
 
-  // সাদা চোখ
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(lx, ly, eyeR, 0, Math.PI * 2);
   ctx.arc(rx, ry, eyeR, 0, Math.PI * 2);
   ctx.fill();
 
-  // কালো মণি
   ctx.fillStyle = "#0a1944";
   ctx.beginPath();
   ctx.arc(lx + direction.x * 1.5, ly + direction.y * 1.5, pupilR, 0, Math.PI * 2);
