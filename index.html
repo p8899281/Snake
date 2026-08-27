@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Google Style AI Snake Pro</title>
+  <title>Google AI Snake Game</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -23,7 +23,7 @@
   <!-- Start Screen with Minutes & Sound -->
   <div id="start-screen" class="overlay-screen hidden">
     <div class="start-box">
-      <div class="start-flags-row">🐍 🌶️ 🏆 🍎 🌟</div>
+      <div class="start-flags-row">🐍 🍎 🏆 🌶️ 🌟</div>
       <h1 class="start-title">GOOGLE AI SNAKE</h1>
       <div class="start-underline"></div>
       
@@ -43,7 +43,7 @@
       <div class="music-settings-box">
         <div class="music-label">🎶 SOUND & MUSIC:</div>
         <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
-          <option value="google">🕹️ Google Arcade Pop (Default)</option>
+          <option value="google">🕹️ Google Arcade Pop</option>
           <option value="cyber">⚡ Cyber Glow Beat</option>
           <option value="synth">🎵 Procedural Synth Beat</option>
           <option value="custom">🔗 Custom MP3 Link</option>
@@ -70,7 +70,7 @@
         <span class="play-icon">▶</span> START AI SNAKE
       </button>
 
-      <div class="start-footer-text">SMART PATTERN AI · WILL NOT DIE EASILY</div>
+      <div class="start-footer-text">SMART PATTERN AI · CONTINUOUS RUNS</div>
     </div>
   </div>
 
@@ -79,7 +79,7 @@
     <!-- Top Score Bar -->
     <header class="google-top-bar">
       <div class="google-bar-item">
-        <span class="bar-icon">🌶️</span>
+        <span class="bar-icon">🍎</span>
         <span class="bar-val" id="topFoodCount">0</span>
       </div>
       <div class="google-bar-item">
@@ -88,17 +88,17 @@
       </div>
     </header>
 
-    <!-- Main Game Layout (Arena sits towards upper-middle) -->
+    <!-- Main Game Layout -->
     <div class="game-content-layout">
       <div class="arena-container">
         <canvas id="arena"></canvas>
         
         <!-- Summary Overlay -->
         <div id="winnerOverlay" class="winner-overlay hidden">
-          <div class="round-winner-text" id="winnerHeading">SESSION FINISHED</div>
+          <div class="round-winner-text" id="winnerHeading">TIME UP</div>
           <div class="winner-flag-box">👑</div>
           <div class="podium-card gold">
-            <span class="podium-badge">🏆 MAX SCORE ACHIEVED 🏆</span>
+            <span class="podium-badge">🏆 SESSION HIGH SCORE 🏆</span>
             <div class="podium-name" id="podium1Name">0 Foods</div>
           </div>
           <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
