@@ -13,6 +13,7 @@ const els = {
   topBestCount: document.getElementById("topBestCount"),
   bgmSelect: document.getElementById("bgmSelect"),
   volumeSlider: document.getElementById("volumeSlider"),
+  volumeValueText: document.getElementById("volumeValueText"),
   fullscreenToggle: document.getElementById("fullscreenToggle")
 };
 
@@ -21,7 +22,7 @@ let isPlaying = false;
 let isRespawning = false;
 let selectedDeviceMode = 'mobile';
 
-// ⏱️ ডিফল্ট ১৫ মিনিট সেট করা হলো
+// ⏱️ ডিউরেশন স্টেট (ডিফল্ট ১৫ মিনিট)
 let SIMULATION_MINUTES = 15;
 let simulationTotalSeconds = 15 * 60;
 let simulationStartTime = 0;
@@ -78,8 +79,11 @@ function buildHamiltonianCycle() {
 }
 buildHamiltonianCycle();
 
-// 🔊 অডিও সিস্টেম
+// -------------------------------------------------------------
+// 🔊 REAL-TIME DYNAMIC MASTER AUDIO ENGINE
+// -------------------------------------------------------------
 let audioCtx = null;
+let masterGainNode = null;
 let masterVolume = 0.85;
 const customAudioPlayer = new Audio();
 customAudioPlayer.loop = true;
@@ -88,6 +92,9 @@ function initAudioEngine() {
   if (!audioCtx) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
+    masterGainNode = audioCtx.createGain();
+    masterGainNode.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
+    masterGainNode.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -95,21 +102,74 @@ function initAudioEngine() {
 }
 
 function handleBgmSelectChange() {
-  if (isPlaying) startBGM();
+  const selected = els.bgmSelect ? els.bgmSelect.value : 'google_original';
+  const customWrapper = document.getElementById("customMusicInputWrapper");
+  if (customWrapper) {
+    if (selected === 'custom') {
+      customWrapper.classList.remove('hidden');
+    } else {
+      customWrapper.classList.add('hidden');
+    }
+  }
+  if (isPlaying) {
+    startBGM();
+  }
 }
 
+// 🔊 রিয়েল-টাইম ভলিউম কন্ট্রোল
 function changeVolume(val) {
-  masterVolume = parseFloat(val) || 0.85;
-  customAudioPlayer.volume = masterVolume;
+  masterVolume = parseFloat(val);
+  if (isNaN(masterVolume)) masterVolume = 0.85;
+  
+  if (els.volumeValueText) {
+    els.volumeValueText.innerText = `${Math.round(masterVolume * 100)}%`;
+  }
+  
+  if (masterGainNode && audioCtx) {
+    masterGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    masterGainNode.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
+  }
+  
+  if (customAudioPlayer) {
+    customAudioPlayer.volume = masterVolume;
+  }
 }
 
 let bgmInterval = null;
 let bgmStep = 0;
-const googleMelody = [523.25, 659.25, 783.99, 1046.50, 783.99, 659.25];
+
+// 🎵 মিউজিক ট্র্যাক তালিকা (Original Google Play Games Snake Theme সহ)
+const musicTracks = {
+  // 🍏 Authentic Google Play Games Snake Upbeat Marimba/Chiptune
+  google_original: {
+    notes: [523.25, 659.25, 783.99, 1046.50, 880.00, 783.99, 659.25, 587.33, 523.25, 659.25, 783.99, 880.00, 783.99, 659.25, 587.33, 493.88],
+    bass: [130.81, 130.81, 164.81, 164.81, 174.61, 174.61, 196.00, 196.00],
+    speed: 130,
+    type: "triangle"
+  },
+  google: {
+    notes: [523.25, 659.25, 783.99, 1046.50, 783.99, 659.25],
+    bass: [261.63, 261.63, 196.00, 196.00],
+    speed: 160,
+    type: "sine"
+  },
+  cyber: {
+    notes: [220, 261.63, 293.66, 349.23, 440, 349.23, 293.66, 261.63],
+    bass: [55, 55, 65.41, 73.42],
+    speed: 130,
+    type: "sawtooth"
+  },
+  synth: {
+    notes: [440, 523.25, 659.25, 587.33, 523.25, 392, 440, 659.25],
+    bass: [110, 110, 130.81, 98],
+    speed: 150,
+    type: "sine"
+  }
+};
 
 function startBGM() {
   stopBGM();
-  const selectedType = els.bgmSelect ? els.bgmSelect.value : 'google';
+  const selectedType = els.bgmSelect ? els.bgmSelect.value : 'google_original';
 
   if (selectedType === 'custom') {
     let url = document.getElementById("customBgmUrl").value.trim();
@@ -119,32 +179,60 @@ function startBGM() {
       customAudioPlayer.play().catch(() => {});
     }
   } else {
+    const track = musicTracks[selectedType] || musicTracks.google_original;
     bgmStep = 0;
+    
     bgmInterval = setInterval(() => {
       if (!audioCtx || !isPlaying || isRespawning) return;
       try {
         const now = audioCtx.currentTime;
+
+        // মেলোডি অসিলেটর
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(googleMelody[bgmStep % googleMelody.length], now);
-        gain.gain.setValueAtTime(0.035 * masterVolume, now);
+        const freq = track.notes[bgmStep % track.notes.length];
+
+        osc.type = track.type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        const vol = (track.type === "sawtooth") ? 0.03 : 0.05;
+        gain.gain.setValueAtTime(vol, now);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(masterGainNode);
         osc.start(now);
         osc.stop(now + 0.13);
+
+        // বেস অসিলেটর
+        if (track.bass && bgmStep % 2 === 0) {
+          const bassOsc = audioCtx.createOscillator();
+          const bassGain = audioCtx.createGain();
+          const bFreq = track.bass[Math.floor(bgmStep / 2) % track.bass.length];
+
+          bassOsc.type = "sine";
+          bassOsc.frequency.setValueAtTime(bFreq, now);
+          bassGain.gain.setValueAtTime(0.08, now);
+          bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+          bassOsc.connect(bassGain);
+          bassGain.connect(masterGainNode);
+          bassOsc.start(now);
+          bassOsc.stop(now + 0.24);
+        }
+
         bgmStep++;
       } catch (e) {}
-    }, 180);
+    }, track.speed);
   }
 }
 
 function stopBGM() {
-  customAudioPlayer.pause();
+  try { customAudioPlayer.pause(); } catch (e) {}
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
+// 🍎 Original Google Snake Crisp Sound Effects
 function playSound(type) {
   if (!audioCtx || audioCtx.state !== 'running' || !isPlaying) return;
   try {
@@ -153,23 +241,30 @@ function playSound(type) {
     const gain = audioCtx.createGain();
 
     if (type === "eat") {
+      // আসল গুগল স্নেকের মতো ক্রিস্প টুইন-পপ
       osc.type = "sine";
-      osc.frequency.setValueAtTime(620, now);
-      osc.frequency.exponentialRampToValueAtTime(980, now + 0.07);
-      gain.gain.setValueAtTime(0.18 * masterVolume, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.exponentialRampToValueAtTime(987.77, now + 0.08); // B5
+      gain.gain.setValueAtTime(0.20, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      
+      osc.connect(gain);
+      gain.connect(masterGainNode);
+      osc.start(now);
+      osc.stop(now + 0.09);
     } else if (type === "die") {
+      // গুগল স্নেকের ডেথ থাড
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(60, now + 0.35);
-      gain.gain.setValueAtTime(0.26 * masterVolume, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(65, now + 0.32);
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+      
+      osc.connect(gain);
+      gain.connect(masterGainNode);
+      osc.start(now);
+      osc.stop(now + 0.33);
     }
-    
-    osc.connect(gain); 
-    gain.connect(audioCtx.destination);
-    osc.start(now); 
-    osc.stop(now + 0.36);
   } catch (e) {}
 }
 
@@ -390,8 +485,8 @@ function updateSnakePhysics() {
 }
 
 function updateHUD() {
-  els.topFoodCount.innerText = currentRunFood;
-  els.topBestCount.innerText = maxFoodSingleRun;
+  if (els.topFoodCount) els.topFoodCount.innerText = currentRunFood;
+  if (els.topBestCount) els.topBestCount.innerText = maxFoodSingleRun;
 }
 
 function endTournament() {
