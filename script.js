@@ -21,15 +21,16 @@ let isPlaying = false;
 let isRespawning = false;
 let selectedDeviceMode = 'mobile';
 
-let SIMULATION_MINUTES = 5;
-let simulationTotalSeconds = 5 * 60;
+// ⏱️ ডিফল্ট ১৫ মিনিট সেট করা হলো
+let SIMULATION_MINUTES = 15;
+let simulationTotalSeconds = 15 * 60;
 let simulationStartTime = 0;
 
 let currentRunFood = 0;
 let maxFoodSingleRun = 0;
 
 function setSimulationMinutes(mins, btnElement) {
-  SIMULATION_MINUTES = parseInt(mins) || 5;
+  SIMULATION_MINUTES = parseInt(mins) || 15;
   simulationTotalSeconds = SIMULATION_MINUTES * 60;
   document.querySelectorAll(".round-btn").forEach(btn => btn.classList.remove("active"));
   if (btnElement) btnElement.classList.add("active");
@@ -48,19 +49,15 @@ let food = { x: 8, y: 4, emoji: "🍎" };
 let lastMoveTime = 0;
 let moveSpeedMs = 110;
 
-// -------------------------------------------------------------
-// 🧠 HAMILTONIAN CYCLE LOOKUP TABLE (100% UNBEATABLE SAFETY)
-// -------------------------------------------------------------
+// 🧠 HAMILTONIAN CYCLE LOOKUP TABLE
 const H_GRID = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
 const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
 
 function buildHamiltonianCycle() {
   let idx = 0;
-  // Row 0: (0,0) -> (11,0)
   for (let x = 0; x < GRID_SIZE; x++) {
     H_GRID[0][x] = idx++;
   }
-  // Rows 1 to 11
   for (let y = 1; y < GRID_SIZE; y++) {
     if (y % 2 === 1) {
       for (let x = GRID_SIZE - 1; x >= 1; x--) {
@@ -75,7 +72,6 @@ function buildHamiltonianCycle() {
       }
     }
   }
-  // Left column return path
   for (let y = GRID_SIZE - 2; y >= 1; y--) {
     H_GRID[y][0] = idx++;
   }
@@ -242,7 +238,6 @@ function resizeCanvas() {
   offsetY = Math.floor((viewHeight - squareArenaSize) / 2);
 }
 
-// 🔄 ছোট সাইজ দিয়ে নতুন শুরু
 function initSnakeCycle() {
   const startX = 3;
   const startY = 0;
@@ -297,7 +292,6 @@ function getNextAIMove() {
   const distHeadToTail = cycleDist(headIdx, tailIdx);
   const distHeadToFood = cycleDist(headIdx, foodIdx);
 
-  // বৈধ মুভ খুঁজে বের করা
   const candidates = [];
   for (const d of DIRS) {
     const nx = head.x + d.x;
@@ -311,16 +305,13 @@ function getNextAIMove() {
 
   if (candidates.length === 0) return direction;
 
-  // মূল হ্যামিল্টোনিয়ান চাল
   const hamiltonianNextIdx = (headIdx + 1) % TOTAL_CELLS;
   let hamiltonianStep = candidates.find(c => c.nextIdx === hamiltonianNextIdx);
 
-  // সাপ বড় হয়ে গেলে (৭০% গ্রিড পূর্ণ হলে) ১০০% সুরক্ষার জন্য শুধু সাইকেল অনুসরণ করবে
   if (snake.length > TOTAL_CELLS * 0.70 && hamiltonianStep) {
     return hamiltonianStep.dir;
   }
 
-  // নিরাপদ শর্টকাট পরীক্ষা (যা লেজকে ওভারটেক না করে খাবারের পথ কমাবে)
   let bestShortcut = null;
   let minFoodDist = distHeadToFood;
   const safetyBuffer = Math.max(3, Math.floor(snake.length * 0.2));
@@ -348,7 +339,6 @@ function getNextAIMove() {
   return candidates[0].dir;
 }
 
-// 💀 ২.৫ সেকেন্ড 'GAME OVER' পজ ও রিস্টার্ট
 function handleSnakeDeath() {
   if (isRespawning) return;
   isRespawning = true;
