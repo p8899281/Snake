@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Google Style AI Snake Pro</title>
+  <title>Google Style AI Snake</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -13,9 +13,9 @@
     <div class="mode-box">
       <h2>SELECT DEVICE MODE</h2>
       <div class="mode-btns">
-        <button onclick="selectMode('mobile')">📱 MOBILE MODE</button>
-        <button onclick="selectMode('tablet')">📟 TABLET MODE</button>
-        <button onclick="selectMode('pc')">💻 PC MODE</button>
+        <button onclick="selectMode('mobile')">📱 MOBILE (9:16)</button>
+        <button onclick="selectMode('tablet')">📟 TABLET (16:9)</button>
+        <button onclick="selectMode('pc')">💻 PC (AUTO)</button>
       </div>
     </div>
   </div>
@@ -24,10 +24,9 @@
   <div id="start-screen" class="overlay-screen hidden">
     <div class="start-box">
       <div class="start-flags-row">🍎 🐍 🏆 🍇 🌟</div>
-      <h1 class="start-title">GOOGLE STYLE AI SNAKE</h1>
+      <h1 class="start-title">GOOGLE AI SNAKE</h1>
       <div class="start-underline"></div>
       
-      <!-- ⏱️ মিনিট সিলেক্টর -->
       <div class="rounds-selector-box">
         <div class="rounds-label">SELECT RUN DURATION:</div>
         <div class="rounds-btn-group">
@@ -36,11 +35,9 @@
           <button type="button" class="round-btn active" onclick="setSimulationMinutes(5, this)">5 MIN</button>
           <button type="button" class="round-btn" onclick="setSimulationMinutes(10, this)">10 MIN</button>
           <button type="button" class="round-btn" onclick="setSimulationMinutes(15, this)">15 MIN</button>
-          <button type="button" class="round-btn" onclick="setSimulationMinutes(30, this)">30 MIN</button>
         </div>
       </div>
 
-      <!-- 🎵 ব্যাকগ্রাউন্ড মিউজিক সেটিংস -->
       <div class="music-settings-box">
         <div class="music-label">🎶 SOUND & MUSIC:</div>
         <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
@@ -61,22 +58,16 @@
         </div>
       </div>
 
-      <label class="fullscreen-option">
-        <input type="checkbox" id="fullscreenToggle" checked />
-        <span>🖥️ Fullscreen Mode</span>
-      </label>
-
       <button class="start-battle-btn" onclick="beginBattle()">
         <span class="play-icon">▶</span> START AI SNAKE
       </button>
 
-      <div class="start-footer-text">CONTINUOUS AUTO RUN · LASTS SELECTED DURATION</div>
+      <div class="start-footer-text">CONTINUOUS AUTO RUN</div>
     </div>
   </div>
 
   <!-- Main Game UI -->
   <div id="app" class="hidden">
-    <!-- Google Snake Style Clean Header -->
     <header class="google-top-bar">
       <div class="google-bar-item">
         <span class="bar-icon">🍎</span>
@@ -89,35 +80,28 @@
     </header>
 
     <div class="game-content-layout">
-      <!-- 🐍 Full View Arena Canvas -->
       <div class="arena-container">
         <canvas id="arena"></canvas>
         
         <div id="winnerOverlay" class="winner-overlay hidden">
-          <canvas id="confettiCanvas"></canvas>
-
           <div class="round-winner-text" id="winnerHeading">SIMULATION COMPLETE</div>
           <div class="winner-flag-box">🍎</div>
-
           <div id="podiumContainer" class="podium-container">
             <div class="celebration-badge">🎊 FINAL REPORT 🎊</div>
-            
             <div class="podium-card gold">
               <span class="podium-badge">👑 MAX APPLES IN ONE RUN 👑</span>
               <div class="podium-name" id="podium1Name">0 Apples</div>
             </div>
-            
             <div class="podium-sub-grid">
               <div class="podium-card silver">
-                <span class="podium-badge">⚡ TOTAL RESPAWNS</span>
+                <span class="podium-badge">⚡ RESPAWNS</span>
                 <div class="podium-name" id="podium2Name">0 Deaths</div>
               </div>
               <div class="podium-card bronze">
-                <span class="podium-badge">🍎 TOTAL EATEN</span>
+                <span class="podium-badge">🍎 TOTAL APPLES</span>
                 <div class="podium-name" id="podium3Name">0 Total</div>
               </div>
             </div>
-
             <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
               🔄 PLAY AGAIN
             </button>
