@@ -18,7 +18,7 @@ const els = {
 
 let viewWidth = 0, viewHeight = 0;
 let isPlaying = false;
-let isRespawning = false; // ল্যাগ ছাড়া মসৃণ পজের জন্য ফ্ল্যাগ
+let isRespawning = false;
 let selectedDeviceMode = 'mobile';
 
 let SIMULATION_MINUTES = 5;
@@ -35,7 +35,7 @@ function setSimulationMinutes(mins, btnElement) {
   if (btnElement) btnElement.classList.add("active");
 }
 
-// 🟩 পারফেক্ট গ্রিড কনফিগারেশন (12x12 Space-Filling Layout)
+// 🟩 পারফেক্ট গ্রিড কনফিগারেশন (12x12 Layout)
 const GRID_SIZE = 12;
 let cols = GRID_SIZE, rows = GRID_SIZE;
 let cellSize = 24;
@@ -46,7 +46,7 @@ let snake = [];
 let direction = { x: 1, y: 0 };
 let food = { x: 8, y: 4, emoji: "🍎" };
 let lastMoveTime = 0;
-let moveSpeedMs = 110; // আরামদায়ক ও মসৃণ গতি
+let moveSpeedMs = 110;
 
 // 🔊 অডিও সিস্টেম
 let audioCtx = null;
@@ -208,7 +208,7 @@ function resizeCanvas() {
   offsetY = Math.floor((viewHeight - squareArenaSize) / 2);
 }
 
-// 🔄 ছোট সাইজ (৩ ব্লক) দিয়ে নতুন ফ্রেশ শুরু
+// 🔄 ছোট সাইজ (৩ ব্লক) দিয়ে নতুন শুরু
 function initSnakeCycle() {
   const startX = 3;
   const startY = Math.floor(GRID_SIZE / 2);
@@ -241,7 +241,7 @@ function spawnFood() {
   }
 }
 
-// 🤖 দীর্ঘস্থায়ী ও স্মার্ট প্যাটার্ন AI (Tail-Guard + Hamiltonian Weaving)
+// 🤖 খাদ্য লক্ষ্যভিত্তিক এবং স্মার্ট সারভাইভাল AI
 function getNextAIMove() {
   const head = snake[0];
   const tail = snake[snake.length - 1];
@@ -270,12 +270,17 @@ function getNextAIMove() {
     return null;
   }
 
-  // ১. নিরাপদ খাবারের পথ
+  // ১. খাবারের দিকে সরাসরি যাওয়ার রুট
   const pathToFood = findPath(head, food, snake);
   if (pathToFood && pathToFood.length > 0) {
+    // সাপ ছোট থাকলে সরাসরি খাবে
+    if (snake.length < 8) {
+      return pathToFood[0];
+    }
+
+    // সাপ বড় হলে ভার্চুয়াল স্টেপ দিয়ে ফাঁদ চেক করবে
     const virtualSnake = [...snake];
     let vHead = { x: head.x, y: head.y };
-    
     for (let step of pathToFood) {
       vHead = { x: vHead.x + step.x, y: vHead.y + step.y };
       virtualSnake.unshift(vHead);
@@ -283,18 +288,12 @@ function getNextAIMove() {
     }
 
     const pathToTailAfterFood = findPath(vHead, virtualSnake[virtualSnake.length - 1], virtualSnake);
-    const freeArea = countFreeSpaces(vHead, virtualSnake);
-
-    // ভার্চুয়াল চেক: খাবার খেলে যদি নিরাপদে লেজে ফেরা যায় ও যথেষ্ট মুক্ত জায়গা থাকে
-    if (pathToTailAfterFood && freeArea >= (rows * cols - virtualSnake.length) * 0.45) {
-      // বাস্তবসম্মত দেখাতে খুব বিরল ক্ষেত্রে (১% চান্স) সরাসরি না গিয়ে একটু প্যাটার্ন বানাবে
-      if (Math.random() > 0.015 || snake.length < 20) {
-        return pathToFood[0];
-      }
+    if (pathToTailAfterFood) {
+      return pathToFood[0]; // খাবার খেয়ে লেজে ফেরার পথ থাকলে নিশ্চিতভাবে খাবে
     }
   }
 
-  // ২. সারভাইভাল মোড: লেজ অনুসরণ করে দীর্ঘ আঁকাবাঁকা প্যাটার্ন তৈরি
+  // ২. সরাসরি খাবার না পেলে লেজ ফলো করে প্যাটার্ন তৈরি করবে
   const pathToTail = findPath(head, tail, snake);
   if (pathToTail && pathToTail.length > 0) {
     let bestDir = pathToTail[0];
@@ -315,7 +314,7 @@ function getNextAIMove() {
     return bestDir;
   }
 
-  // ৩. বিকল্প সেফ স্টেপ
+  // ৩. বিকল্প নিরাপদ স্টেপ
   for (let d of dirs) {
     const nx = head.x + d.x, ny = head.y + d.y;
     if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
@@ -332,7 +331,7 @@ function countFreeSpaces(startPos, customSnake) {
   const vis = Array.from({ length: rows }, () => Array(cols).fill(false));
   vis[startPos.y][startPos.x] = true;
 
-  while (q.length > 0 && count < 60) {
+  while (q.length > 0 && count < 40) {
     const c = q.shift();
     count++;
     const dirs = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
@@ -349,7 +348,7 @@ function countFreeSpaces(startPos, customSnake) {
   return count;
 }
 
-// 💀 ল্যাগ ছাড়া ২.৫ সেকেন্ড 'GAME OVER' পজ ও রিস্টার্ট
+// 💀 ২.৫ সেকেন্ড 'GAME OVER' পজ ও রিস্টার্ট
 function handleSnakeDeath() {
   if (isRespawning) return;
   isRespawning = true;
@@ -361,7 +360,6 @@ function handleSnakeDeath() {
   }
   updateHUD();
 
-  // GAME OVER স্ক্রিন দেখানো
   if (els.goScoreVal) els.goScoreVal.innerText = currentRunFood;
   if (els.gameOverOverlay) els.gameOverOverlay.classList.remove("hidden");
 
@@ -402,8 +400,8 @@ function updateSnakePhysics() {
 }
 
 function updateHUD() {
-  if (els.topFoodCount) els.topFoodCount.innerText = currentRunFood;
-  if (els.topBestCount) els.topBestCount.innerText = maxFoodSingleRun;
+  els.topFoodCount.innerText = currentRunFood;
+  els.topBestCount.innerText = maxFoodSingleRun;
 }
 
 function endTournament() {
@@ -421,7 +419,7 @@ function restartTournament() {
   isRespawning = false;
 }
 
-// 🎨 রেন্ডারিং লুপ
+// 🎨 রেন্ডারিং
 function gameLoop(time) {
   if (!isPlaying || !ctx) return;
 
