@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>193 World Flags Battle HD Pro</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Mode Selection Screen (Mobile, Tablet, PC) -->
+  <div id="mode-selector" class="overlay-screen">
+    <div class="mode-box">
+      <h2>SELECT DEVICE MODE</h2>
+      <div class="mode-btns">
+        <button onclick="selectMode('mobile')">📱 MOBILE MODE</button>
+        <button onclick="selectMode('tablet')">📟 TABLET MODE</button>
+        <button onclick="selectMode('pc')">💻 PC MODE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Battle Screen with Fullscreen, Round Selector & Music Settings -->
+  <div id="start-screen" class="overlay-screen hidden">
+    <div class="start-box">
+      <div class="start-flags-row">🇺🇸 🇧🇷 🇯🇵 🇫🇷 🇰🇷 🇩🇪 🇦🇷</div>
+      <h1 class="start-title">COUNTRY FLAGS BATTLE</h1>
+      <div class="start-underline"></div>
+      
+      <!-- 🔢 রাউন্ড সিলেক্টর (15, 30, 60, 90, 120) -->
+      <div class="rounds-selector-box">
+        <div class="rounds-label">SELECT TOURNAMENT ROUNDS:</div>
+        <div class="rounds-btn-group">
+          <button type="button" class="round-btn" onclick="setTournamentRounds(15, this)">15</button>
+          <button type="button" class="round-btn" onclick="setTournamentRounds(30, this)">30</button>
+          <button type="button" class="round-btn active" onclick="setTournamentRounds(60, this)">60</button>
+          <button type="button" class="round-btn" onclick="setTournamentRounds(90, this)">90</button>
+          <button type="button" class="round-btn" onclick="setTournamentRounds(120, this)">120</button>
+        </div>
+      </div>
+
+      <!-- 🎵 ব্যাকগ্রাউন্ড মিউজিক ও সাউন্ড সেটিংস -->
+      <div class="music-settings-box">
+        <div class="music-label">🎶 BACKGROUND MUSIC:</div>
+        <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
+          <option value="synth">🎵 Procedural Marimba Beat (Default ASMR)</option>
+          <option value="arcade">🕹️ Retro Arcade Battle Beat</option>
+          <option value="cyber">⚡ Neon Cyberpunk Energy</option>
+          <option value="epic">🥁 Epic Tournament March</option>
+          <option value="custom">🔗 Custom GitHub / Direct MP3 Link</option>
+        </select>
+
+        <!-- কাস্টম লিঙ্ক ইনপুট বক্স -->
+        <div id="customMusicInputWrapper" class="custom-music-wrapper hidden">
+          <input type="text" id="customBgmUrl" class="custom-music-input" placeholder="Paste GitHub raw or direct .mp3 link..." />
+        </div>
+
+        <!-- 🔊 ভলিউম কন্ট্রোল স্লাইডার -->
+        <div class="volume-slider-row">
+          <span class="vol-icon">🔊 VOLUME:</span>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.85" oninput="changeVolume(this.value)" />
+          <span id="volumeValueText" class="vol-percent">85%</span>
+        </div>
+      </div>
+
+      <label class="fullscreen-option">
+        <input type="checkbox" id="fullscreenToggle" checked />
+        <span>🖥️ Launch in Fullscreen</span>
+      </label>
+
+      <button class="start-battle-btn" onclick="beginBattle()">
+        <span class="play-icon">▶</span> START THE BATTLE
+      </button>
+
+      <div class="start-footer-text">193+ FLAGS · LAST FLAG STANDING WINS</div>
+    </div>
+  </div>
+
+  <!-- Main Game UI -->
+  <div id="app" class="hidden">
+    <header class="top-header">
+      <div class="title" id="mainTitle">193-WORLD FLAGS BATTLE</div>
+      <div class="subtitle" id="subTitle">
+        <span id="roundLabel">ROUND</span> <span id="roundText">1</span> ⏱ <span id="timerText">00:45</span> · <span id="stageLabel">QUALIFYING</span>
+      </div>
+    </header>
+
+    <div class="game-content-layout">
+      <!-- 🏆 Left Side: Qualified Board -->
+      <div class="qualified-board">
+        <div class="board-title" id="boardHeading">QUALIFIED FOR FINAL</div>
+        <div class="board-list" id="qualifiedList"></div>
+        
+        <div class="board-footer">
+          <span class="rounds-status" id="roundProgressText">ROUNDS: 1 / 60</span>
+          <span class="final-countdown" id="finalCountdownText">FINAL IN: 45:00</span>
+        </div>
+      </div>
+
+      <!-- ⚔️ Center: Arena Ring -->
+      <div class="arena-container">
+        <canvas id="arena"></canvas>
+        
+        <!-- Winner & Grand Final Podium Overlay -->
+        <div id="winnerOverlay" class="winner-overlay hidden">
+          <canvas id="confettiCanvas"></canvas>
+
+          <div class="round-winner-text" id="winnerHeading">ROUND WINNER</div>
+          <div class="winner-flag-box" id="winnerFlagBox">🏳️</div>
+          <div class="winner-name" id="winnerName">Country</div>
+
+          <div id="podiumContainer" class="podium-container hidden">
+            <div class="celebration-badge">🎊 GRAND CELEBRATION 🎊</div>
+            
+            <div class="podium-card gold">
+              <span class="podium-badge">👑 1ST PLACE - CHAMPION 👑</span>
+              <div class="podium-flag" id="podium1Flag">🏳️</div>
+              <div class="podium-name" id="podium1Name">Winner</div>
+            </div>
+            
+            <div class="podium-sub-grid">
+              <div class="podium-card silver">
+                <span class="podium-badge">🥈 2ND PLACE</span>
+                <div class="podium-flag" id="podium2Flag">🏳️</div>
+                <div class="podium-name" id="podium2Name">Runner Up</div>
+              </div>
+              <div class="podium-card bronze">
+                <span class="podium-badge">🥉 3RD PLACE</span>
+                <div class="podium-flag" id="podium3Flag">🏳️</div>
+                <div class="podium-name" id="podium3Name">3rd Place</div>
+              </div>
+            </div>
+
+            <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
+              🔄 PLAY AGAIN
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ❌ Right Side: Eliminated List (শুধুমাত্র ট্যাবলেট মোডে দৃশ্যমান) -->
+      <div class="eliminated-board" id="eliminatedBoard">
+        <div class="board-title">ELIMINATED</div>
+        <div class="eliminated-list" id="eliminatedList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
