@@ -225,7 +225,7 @@ function stopBGM() {
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
-// 🔊 সাউন্ড ইফেক্টস (বাঁক নেওয়া, খাবার খাওয়া ও মৃত্যু)
+// 🔊 নতুন ও উন্নত সাউন্ড ইফেক্টস
 function playSound(type) {
   if (!audioCtx || !isPlaying) return;
   if (audioCtx.state === 'suspended') {
@@ -234,36 +234,60 @@ function playSound(type) {
   
   try {
     const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
 
     if (type === "turn") {
-      // 🔄 Google Snake স্পষ্ট টার্নিং স্ন্যাপ-পপ সাউন্ড
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(640, now);
-      osc.frequency.exponentialRampToValueAtTime(260, now + 0.055);
-      
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
-      
-      osc.connect(gain);
-      gain.connect(masterGainNode || audioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.06);
-    } else if (type === "eat") {
-      // 🍎 খাবার খাওয়ার পপ সাউন্ড
+      // 🔄 নতুন মিষ্টি ও সফট উডব্লক বাবল সাউন্ড (Smooth & Pleasing Turn)
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
       osc.type = "sine";
-      osc.frequency.setValueAtTime(587.33, now);
-      osc.frequency.exponentialRampToValueAtTime(987.77, now + 0.08);
-      gain.gain.setValueAtTime(0.20, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(280, now + 0.035);
+      
+      gain.gain.setValueAtTime(0.16, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
       
       osc.connect(gain);
       gain.connect(masterGainNode || audioCtx.destination);
       osc.start(now);
-      osc.stop(now + 0.09);
+      osc.stop(now + 0.04);
+    } else if (type === "eat") {
+      // 🍎 খাবার খাওয়ার জোরালো ও ক্রিস্প পাঞ্চি পপ সাউন্ড (Louder & Punchier Pop)
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(620, now);
+      osc1.frequency.exponentialRampToValueAtTime(1250, now + 0.09);
+      
+      gain1.gain.setValueAtTime(0.48, now);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      
+      osc1.connect(gain1);
+      gain1.connect(masterGainNode || audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.10);
+
+      // ক্রিস্প রেজোন্যান্স সাব-লেয়ার
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+
+      osc2.type = "triangle";
+      osc2.frequency.setValueAtTime(310, now);
+      osc2.frequency.exponentialRampToValueAtTime(625, now + 0.07);
+
+      gain2.gain.setValueAtTime(0.25, now);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+
+      osc2.connect(gain2);
+      gain2.connect(masterGainNode || audioCtx.destination);
+      osc2.start(now);
+      osc2.stop(now + 0.08);
     } else if (type === "die") {
       // 💀 মৃত্যুর থাড সাউন্ড
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
       osc.type = "triangle";
       osc.frequency.setValueAtTime(320, now);
       osc.frequency.exponentialRampToValueAtTime(65, now + 0.32);
@@ -472,7 +496,7 @@ function updateSnakePhysics() {
 
   const nextDir = getNextAIMove();
 
-  // 🔄 দিক পরিবর্তন করলেই টার্নিং সাউন্ড বাজবে
+  // 🔄 দিক পরিবর্তন করলে নতুন টার্ন সাউন্ড বাজবে
   if (nextDir.x !== direction.x || nextDir.y !== direction.y) {
     playSound("turn");
   }
@@ -521,7 +545,7 @@ function restartTournament() {
   isRespawning = false;
 }
 
-// 🎨 রেন্ডারিং (বড় চোখ ও লাল চেরা জিভ অ্যানিমেশন সহ)
+// 🎨 রেন্ডারিং
 function gameLoop(time) {
   if (!isPlaying || !ctx) return;
 
@@ -555,7 +579,7 @@ function gameLoop(time) {
   ctx.textBaseline = "middle";
   ctx.fillText(food.emoji, fx, fy);
 
-  // ৩. ব্লু রিবন স্নেক বডি (লেজের দিকে ক্রমশ পাতলা ও সুন্দর টেপার্ড)
+  // ৩. ব্লু রিবন স্নেক বডি (লেজের দিকে সুন্দর টেপার্ড)
   if (snake.length > 1) {
     for (let i = snake.length - 2; i >= 0; i--) {
       const p1 = { x: offsetX + snake[i].x * cellSize + cellSize / 2, y: offsetY + snake[i].y * cellSize + cellSize / 2 };
@@ -667,14 +691,12 @@ function gameLoop(time) {
     rx = hx + eyeOffsetSide; ry = hy - eyeOffsetForward;
   }
 
-  // চোখের সাদা অংশ
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(lx, ly, eyeR, 0, Math.PI * 2);
   ctx.arc(rx, ry, eyeR, 0, Math.PI * 2);
   ctx.fill();
 
-  // কালো তারা
   ctx.fillStyle = "#081438";
   const pOffX = direction.x * (eyeR * 0.32);
   const pOffY = direction.y * (eyeR * 0.32);
@@ -683,7 +705,6 @@ function gameLoop(time) {
   ctx.arc(rx + pOffX, ry + pOffY, pupilR, 0, Math.PI * 2);
   ctx.fill();
 
-  // চোখের গ্লো হাইলাইট
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(lx + pOffX - 1.5, ly + pOffY - 1.5, highlightR, 0, Math.PI * 2);
