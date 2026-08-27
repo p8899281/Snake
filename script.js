@@ -35,7 +35,7 @@ function setSimulationMinutes(mins, btnElement) {
   if (btnElement) btnElement.classList.add("active");
 }
 
-// 🟩 পারফেক্ট গ্রিড কনফিগারেশন (12x12 Layout)
+// 🟩 গ্রিড কনফিগারেশন (12x12 Layout)
 const GRID_SIZE = 12;
 let cols = GRID_SIZE, rows = GRID_SIZE;
 let cellSize = 24;
@@ -208,7 +208,6 @@ function resizeCanvas() {
   offsetY = Math.floor((viewHeight - squareArenaSize) / 2);
 }
 
-// 🔄 ছোট সাইজ (৩ ব্লক) দিয়ে নতুন শুরু
 function initSnakeCycle() {
   const startX = 3;
   const startY = Math.floor(GRID_SIZE / 2);
@@ -241,111 +240,145 @@ function spawnFood() {
   }
 }
 
-// 🤖 খাদ্য লক্ষ্যভিত্তিক এবং স্মার্ট সারভাইভাল AI
+// -------------------------------------------------------------
+// 🧠 ULTRA-SMART SURVIVAL & PATHFINDING AI ENGINE
+// -------------------------------------------------------------
+const DIRS = [
+  { x: 0, y: -1 }, // Up
+  { x: 1, y: 0 },  // Right
+  { x: 0, y: 1 },  // Down
+  { x: -1, y: 0 }  // Left
+];
+
+function isCellSafe(pos, bodyList) {
+  if (pos.x < 0 || pos.x >= cols || pos.y < 0 || pos.y >= rows) return false;
+  // লেজের শেষ অংশটি সামনের চালে ফাঁকা হয়ে যাবে, তাই slice(0, -1) চেক করা হয়
+  return !bodyList.slice(0, -1).some(seg => seg.x === pos.x && seg.y === pos.y);
+}
+
+// শর্টেস্ট পাথ ফাইন্ডার (BFS)
+function findShortestPath(start, target, bodyList) {
+  const queue = [{ x: start.x, y: start.y, path: [] }];
+  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  visited[start.y][start.x] = true;
+
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    if (curr.x === target.x && curr.y === target.y) {
+      return curr.path;
+    }
+
+    for (const d of DIRS) {
+      const nx = curr.x + d.x;
+      const ny = curr.y + d.y;
+      const nextPos = { x: nx, y: ny };
+
+      if (isCellSafe(nextPos, bodyList) && !visited[ny][nx]) {
+        visited[ny][nx] = true;
+        queue.push({ x: nx, y: ny, path: [...curr.path, d] });
+      }
+    }
+  }
+  return null;
+}
+
+// উপলব্ধ ফাঁকা জায়গার ক্ষেত্রফল গণনা (Flood Fill)
+function calculateFloodFillArea(start, bodyList) {
+  let area = 0;
+  const queue = [start];
+  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  visited[start.y][start.x] = true;
+
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    area++;
+
+    for (const d of DIRS) {
+      const nx = curr.x + d.x;
+      const ny = curr.y + d.y;
+      const nextPos = { x: nx, y: ny };
+
+      if (isCellSafe(nextPos, bodyList) && !visited[ny][nx]) {
+        visited[ny][nx] = true;
+        queue.push(nextPos);
+      }
+    }
+  }
+  return area;
+}
+
 function getNextAIMove() {
   const head = snake[0];
   const tail = snake[snake.length - 1];
-  const dirs = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
 
-  // BFS পাথ ফাইন্ডিং
-  function findPath(start, target, customSnake) {
-    const queue = [{ x: start.x, y: start.y, path: [] }];
-    const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
-    visited[start.y][start.x] = true;
-
-    while (queue.length > 0) {
-      const curr = queue.shift();
-      if (curr.x === target.x && curr.y === target.y) return curr.path;
-
-      for (let d of dirs) {
-        const nx = curr.x + d.x, ny = curr.y + d.y;
-        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !visited[ny][nx]) {
-          if (!customSnake.slice(0, -1).some(s => s.x === nx && s.y === ny)) {
-            visited[ny][nx] = true;
-            queue.push({ x: nx, y: ny, path: [...curr.path, d] });
-          }
-        }
-      }
+  // ১. বর্তমান পজিশন থেকে সব তাৎক্ষণিক নিরাপদ দিক ফিল্টার
+  const safeMoves = [];
+  for (const d of DIRS) {
+    const nextPos = { x: head.x + d.x, y: head.y + d.y };
+    if (isCellSafe(nextPos, snake)) {
+      safeMoves.push(d);
     }
-    return null;
   }
 
-  // ১. খাবারের দিকে সরাসরি যাওয়ার রুট
-  const pathToFood = findPath(head, food, snake);
-  if (pathToFood && pathToFood.length > 0) {
-    // সাপ ছোট থাকলে সরাসরি খাবে
-    if (snake.length < 8) {
-      return pathToFood[0];
-    }
+  // কোনো দিকে যাওয়ার জায়গা না থাকলে (অনিবার্য পরিস্থিতি)
+  if (safeMoves.length === 0) return direction;
+  if (safeMoves.length === 1) return safeMoves[0];
 
-    // সাপ বড় হলে ভার্চুয়াল স্টেপ দিয়ে ফাঁদ চেক করবে
-    const virtualSnake = [...snake];
-    let vHead = { x: head.x, y: head.y };
-    for (let step of pathToFood) {
+  // ২. খাবারে যাওয়ার পথ পরীক্ষা (ভার্চুয়াল সেফটি চেক)
+  const pathToFood = findShortestPath(head, food, snake);
+  if (pathToFood && pathToFood.length > 0) {
+    // ভার্চুয়াল স্নেক তৈরি করে খাবার পর্যন্ত মুভ সিমুলেশন
+    const virtualSnake = snake.map(s => ({ ...s }));
+    let vHead = { ...head };
+
+    for (const step of pathToFood) {
       vHead = { x: vHead.x + step.x, y: vHead.y + step.y };
       virtualSnake.unshift(vHead);
       virtualSnake.pop();
     }
 
-    const pathToTailAfterFood = findPath(vHead, virtualSnake[virtualSnake.length - 1], virtualSnake);
-    if (pathToTailAfterFood) {
-      return pathToFood[0]; // খাবার খেয়ে লেজে ফেরার পথ থাকলে নিশ্চিতভাবে খাবে
+    const vTail = virtualSnake[virtualSnake.length - 1];
+    const canReachTailAfterFood = findShortestPath(vHead, vTail, virtualSnake);
+    const freeAreaAfterFood = calculateFloodFillArea(vHead, virtualSnake);
+
+    // ভার্চুয়ালি খাবার খাওয়ার পর যদি লেজে ফেরা যায় এবং যথেষ্ট মুক্ত জায়গা থাকে
+    const minSafeSpace = Math.max(12, Math.floor(snake.length * 1.2));
+    if (canReachTailAfterFood && freeAreaAfterFood >= minSafeSpace) {
+      return pathToFood[0];
     }
   }
 
-  // ২. সরাসরি খাবার না পেলে লেজ ফলো করে প্যাটার্ন তৈরি করবে
-  const pathToTail = findPath(head, tail, snake);
-  if (pathToTail && pathToTail.length > 0) {
-    let bestDir = pathToTail[0];
-    let maxOpenArea = -1;
+  // ৩. সারভাইভাল মোড: লেজ অনুসরণ করে দীর্ঘ আঁকাবাঁকা পথ নির্বাচন
+  let bestMove = null;
+  let maxScore = -1;
 
-    for (let d of dirs) {
-      const nx = head.x + d.x, ny = head.y + d.y;
-      if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-        if (!snake.slice(0, -1).some(s => s.x === nx && s.y === ny)) {
-          const area = countFreeSpaces({ x: nx, y: ny }, snake);
-          if (area > maxOpenArea) {
-            maxOpenArea = area;
-            bestDir = d;
-          }
-        }
-      }
-    }
-    return bestDir;
-  }
+  for (const d of safeMoves) {
+    const nextPos = { x: head.x + d.x, y: head.y + d.y };
+    
+    // ১-স্টেপ ভার্চুয়াল স্নেক
+    const simSnake = snake.map(s => ({ ...s }));
+    simSnake.unshift(nextPos);
+    simSnake.pop();
 
-  // ৩. বিকল্প নিরাপদ স্টেপ
-  for (let d of dirs) {
-    const nx = head.x + d.x, ny = head.y + d.y;
-    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-      if (!snake.slice(0, -1).some(s => s.x === nx && s.y === ny)) return d;
-    }
-  }
+    const simTail = simSnake[simSnake.length - 1];
+    const canReachTail = findShortestPath(nextPos, simTail, simSnake) !== null;
+    const floodArea = calculateFloodFillArea(nextPos, simSnake);
 
-  return dirs[0];
-}
+    // স্কোরিং: লেজে ফেরা নিশ্চিত করা + সর্বাধিক ফাঁকা জায়গা রাখা
+    let score = floodArea;
+    if (canReachTail) score += 500; // লেজে ফেরার পথ থাকলে বিশাল বোনাস
 
-function countFreeSpaces(startPos, customSnake) {
-  let count = 0;
-  const q = [startPos];
-  const vis = Array.from({ length: rows }, () => Array(cols).fill(false));
-  vis[startPos.y][startPos.x] = true;
+    // খাবারের খুব কাছাকাছি অযথা আটকে না গিয়ে নিরাপদ দূরত্ব বজায় রাখা
+    const distToFood = Math.abs(nextPos.x - food.x) + Math.abs(nextPos.y - food.y);
+    score += distToFood * 0.5;
 
-  while (q.length > 0 && count < 40) {
-    const c = q.shift();
-    count++;
-    const dirs = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
-    for (let d of dirs) {
-      const nx = c.x + d.x, ny = c.y + d.y;
-      if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !vis[ny][nx]) {
-        if (!customSnake.some(s => s.x === nx && s.y === ny)) {
-          vis[ny][nx] = true;
-          q.push({ x: nx, y: ny });
-        }
-      }
+    if (score > maxScore) {
+      maxScore = score;
+      bestMove = d;
     }
   }
-  return count;
+
+  return bestMove || safeMoves[0];
 }
 
 // 💀 ২.৫ সেকেন্ড 'GAME OVER' পজ ও রিস্টার্ট
