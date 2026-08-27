@@ -6,6 +6,8 @@ const els = {
   modeSelector: document.getElementById("mode-selector"),
   startScreen: document.getElementById("start-screen"),
   winnerOverlay: document.getElementById("winnerOverlay"),
+  gameOverOverlay: document.getElementById("gameOverOverlay"),
+  goScoreVal: document.getElementById("goScoreVal"),
   podium1Name: document.getElementById("podium1Name"),
   topFoodCount: document.getElementById("topFoodCount"),
   topBestCount: document.getElementById("topBestCount"),
@@ -16,13 +18,13 @@ const els = {
 
 let viewWidth = 0, viewHeight = 0;
 let isPlaying = false;
+let isRespawning = false; // ল্যাগ ছাড়া মসৃণ পজের জন্য ফ্ল্যাগ
 let selectedDeviceMode = 'mobile';
 
 let SIMULATION_MINUTES = 5;
 let simulationTotalSeconds = 5 * 60;
 let simulationStartTime = 0;
 
-// 🔢 সঠিক স্কোর ট্র্যাকিং
 let currentRunFood = 0;
 let maxFoodSingleRun = 0;
 
@@ -33,8 +35,8 @@ function setSimulationMinutes(mins, btnElement) {
   if (btnElement) btnElement.classList.add("active");
 }
 
-// 🟩 স্কয়ার গ্রিড (13x13 Grid)
-const GRID_SIZE = 13;
+// 🟩 পারফেক্ট গ্রিড কনফিগারেশন (12x12 Space-Filling Layout)
+const GRID_SIZE = 12;
 let cols = GRID_SIZE, rows = GRID_SIZE;
 let cellSize = 24;
 let offsetX = 0, offsetY = 0;
@@ -42,9 +44,9 @@ let squareArenaSize = 0;
 
 let snake = [];
 let direction = { x: 1, y: 0 };
-let food = { x: 9, y: 4, emoji: "🍎" };
+let food = { x: 8, y: 4, emoji: "🍎" };
 let lastMoveTime = 0;
-let moveSpeedMs = 115; // 🐢 গতি ধীর এবং মসৃণ করা হয়েছে
+let moveSpeedMs = 110; // আরামদায়ক ও মসৃণ গতি
 
 // 🔊 অডিও সিস্টেম
 let audioCtx = null;
@@ -89,7 +91,7 @@ function startBGM() {
   } else {
     bgmStep = 0;
     bgmInterval = setInterval(() => {
-      if (!audioCtx || !isPlaying) return;
+      if (!audioCtx || !isPlaying || isRespawning) return;
       try {
         const now = audioCtx.currentTime;
         const osc = audioCtx.createOscillator();
@@ -128,31 +130,26 @@ function playSound(type) {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
     } else if (type === "die") {
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.22);
-      gain.gain.setValueAtTime(0.25 * masterVolume, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.35);
+      gain.gain.setValueAtTime(0.26 * masterVolume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
     }
     
     osc.connect(gain); 
     gain.connect(audioCtx.destination);
     osc.start(now); 
-    osc.stop(now + 0.24);
+    osc.stop(now + 0.36);
   } catch (e) {}
 }
 
 async function triggerFullscreen() {
   const docEl = document.documentElement;
   try {
-    if (docEl.requestFullscreen) {
-      await docEl.requestFullscreen();
-    } else if (docEl.webkitRequestFullscreen) {
-      await docEl.webkitRequestFullscreen();
-    } else if (docEl.mozRequestFullScreen) {
-      await docEl.mozRequestFullScreen();
-    } else if (docEl.msRequestFullscreen) {
-      await docEl.msRequestFullscreen();
-    }
+    if (docEl.requestFullscreen) await docEl.requestFullscreen();
+    else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
+    else if (docEl.mozRequestFullScreen) await docEl.mozRequestFullScreen();
+    else if (docEl.msRequestFullscreen) await docEl.msRequestFullscreen();
   } catch (err) {}
 }
 
@@ -180,6 +177,7 @@ function beginBattle() {
   simulationStartTime = Date.now();
   currentRunFood = 0;
   maxFoodSingleRun = 0;
+  isRespawning = false;
   
   initSnakeCycle();
   isPlaying = true;
@@ -187,15 +185,11 @@ function beginBattle() {
   requestAnimationFrame(gameLoop);
 }
 
-// 📏 রেজোলিউশন ও এরিনা ক্যালকুলেশন
 function resizeCanvas() {
   if (!canvas) return;
   const rect = canvas.parentElement.getBoundingClientRect();
   
-  if (selectedDeviceMode === 'mobile') {
-    canvas.width = 1080;
-    canvas.height = 1080;
-  } else if (selectedDeviceMode === 'tablet') {
+  if (selectedDeviceMode === 'mobile' || selectedDeviceMode === 'tablet') {
     canvas.width = 1080;
     canvas.height = 1080;
   } else {
@@ -214,7 +208,7 @@ function resizeCanvas() {
   offsetY = Math.floor((viewHeight - squareArenaSize) / 2);
 }
 
-// 🔄 ছোট সাইজ (৩ ব্লক) দিয়ে নতুন শুরু
+// 🔄 ছোট সাইজ (৩ ব্লক) দিয়ে নতুন ফ্রেশ শুরু
 function initSnakeCycle() {
   const startX = 3;
   const startY = Math.floor(GRID_SIZE / 2);
@@ -247,12 +241,13 @@ function spawnFood() {
   }
 }
 
-// 🤖 স্মার্ট সারভাইভাল ও প্যাটার্ন AI
+// 🤖 দীর্ঘস্থায়ী ও স্মার্ট প্যাটার্ন AI (Tail-Guard + Hamiltonian Weaving)
 function getNextAIMove() {
   const head = snake[0];
   const tail = snake[snake.length - 1];
   const dirs = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
 
+  // BFS পাথ ফাইন্ডিং
   function findPath(start, target, customSnake) {
     const queue = [{ x: start.x, y: start.y, path: [] }];
     const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
@@ -288,12 +283,18 @@ function getNextAIMove() {
     }
 
     const pathToTailAfterFood = findPath(vHead, virtualSnake[virtualSnake.length - 1], virtualSnake);
-    if (pathToTailAfterFood) {
-      return pathToFood[0];
+    const freeArea = countFreeSpaces(vHead, virtualSnake);
+
+    // ভার্চুয়াল চেক: খাবার খেলে যদি নিরাপদে লেজে ফেরা যায় ও যথেষ্ট মুক্ত জায়গা থাকে
+    if (pathToTailAfterFood && freeArea >= (rows * cols - virtualSnake.length) * 0.45) {
+      // বাস্তবসম্মত দেখাতে খুব বিরল ক্ষেত্রে (১% চান্স) সরাসরি না গিয়ে একটু প্যাটার্ন বানাবে
+      if (Math.random() > 0.015 || snake.length < 20) {
+        return pathToFood[0];
+      }
     }
   }
 
-  // ২. লেজ অনুসরণ করে দীর্ঘস্থায়ী প্যাটার্ন তৈরি
+  // ২. সারভাইভাল মোড: লেজ অনুসরণ করে দীর্ঘ আঁকাবাঁকা প্যাটার্ন তৈরি
   const pathToTail = findPath(head, tail, snake);
   if (pathToTail && pathToTail.length > 0) {
     let bestDir = pathToTail[0];
@@ -303,7 +304,7 @@ function getNextAIMove() {
       const nx = head.x + d.x, ny = head.y + d.y;
       if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
         if (!snake.slice(0, -1).some(s => s.x === nx && s.y === ny)) {
-          const area = countFreeSpaces({ x: nx, y: ny });
+          const area = countFreeSpaces({ x: nx, y: ny }, snake);
           if (area > maxOpenArea) {
             maxOpenArea = area;
             bestDir = d;
@@ -314,6 +315,7 @@ function getNextAIMove() {
     return bestDir;
   }
 
+  // ৩. বিকল্প সেফ স্টেপ
   for (let d of dirs) {
     const nx = head.x + d.x, ny = head.y + d.y;
     if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
@@ -324,20 +326,20 @@ function getNextAIMove() {
   return dirs[0];
 }
 
-function countFreeSpaces(startPos) {
+function countFreeSpaces(startPos, customSnake) {
   let count = 0;
   const q = [startPos];
   const vis = Array.from({ length: rows }, () => Array(cols).fill(false));
   vis[startPos.y][startPos.x] = true;
 
-  while (q.length > 0 && count < 30) {
+  while (q.length > 0 && count < 60) {
     const c = q.shift();
     count++;
     const dirs = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
     for (let d of dirs) {
       const nx = c.x + d.x, ny = c.y + d.y;
       if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !vis[ny][nx]) {
-        if (!snake.some(s => s.x === nx && s.y === ny)) {
+        if (!customSnake.some(s => s.x === nx && s.y === ny)) {
           vis[ny][nx] = true;
           q.push({ x: nx, y: ny });
         }
@@ -347,19 +349,34 @@ function countFreeSpaces(startPos) {
   return count;
 }
 
+// 💀 ল্যাগ ছাড়া ২.৫ সেকেন্ড 'GAME OVER' পজ ও রিস্টার্ট
 function handleSnakeDeath() {
+  if (isRespawning) return;
+  isRespawning = true;
+  
   playSound("die");
+  
   if (currentRunFood > maxFoodSingleRun) {
     maxFoodSingleRun = currentRunFood;
   }
   updateHUD();
-  
-  setTimeout(() => { 
-    if (isPlaying) initSnakeCycle(); 
-  }, 400);
+
+  // GAME OVER স্ক্রিন দেখানো
+  if (els.goScoreVal) els.goScoreVal.innerText = currentRunFood;
+  if (els.gameOverOverlay) els.gameOverOverlay.classList.remove("hidden");
+
+  setTimeout(() => {
+    if (els.gameOverOverlay) els.gameOverOverlay.classList.add("hidden");
+    if (isPlaying) {
+      initSnakeCycle();
+      isRespawning = false;
+    }
+  }, 2500);
 }
 
 function updateSnakePhysics() {
+  if (isRespawning) return;
+
   direction = getNextAIMove();
   const newHead = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
@@ -385,25 +402,26 @@ function updateSnakePhysics() {
 }
 
 function updateHUD() {
-  els.topFoodCount.innerText = currentRunFood;
-  els.topBestCount.innerText = maxFoodSingleRun;
+  if (els.topFoodCount) els.topFoodCount.innerText = currentRunFood;
+  if (els.topBestCount) els.topBestCount.innerText = maxFoodSingleRun;
 }
 
 function endTournament() {
   isPlaying = false;
   stopBGM();
-  els.podium1Name.innerText = `${maxFoodSingleRun} Foods Collected`;
-  els.winnerOverlay.classList.remove("hidden");
+  if (els.podium1Name) els.podium1Name.innerText = `${maxFoodSingleRun} Foods Collected`;
+  if (els.winnerOverlay) els.winnerOverlay.classList.remove("hidden");
 }
 
 function restartTournament() {
-  els.winnerOverlay.classList.add("hidden");
-  els.app.classList.add("hidden");
-  els.startScreen.classList.remove("hidden");
+  if (els.winnerOverlay) els.winnerOverlay.classList.add("hidden");
+  if (els.app) els.app.classList.add("hidden");
+  if (els.startScreen) els.startScreen.classList.remove("hidden");
   isPlaying = false;
+  isRespawning = false;
 }
 
-// 🎨 রেন্ডারিং
+// 🎨 রেন্ডারিং লুপ
 function gameLoop(time) {
   if (!isPlaying || !ctx) return;
 
@@ -421,7 +439,7 @@ function gameLoop(time) {
   ctx.fillStyle = "#4a752c";
   ctx.fillRect(0, 0, viewWidth, viewHeight);
 
-  // ডুয়াল গ্রিন গ্রাস
+  // ১. ডুয়াল গ্রিন গ্রাস
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       ctx.fillStyle = (r + c) % 2 === 0 ? "#8ad44a" : "#7ec841";
@@ -429,7 +447,7 @@ function gameLoop(time) {
     }
   }
 
-  // খাদ্য
+  // ২. খাদ্য
   const fx = offsetX + food.x * cellSize + cellSize / 2;
   const fy = offsetY + food.y * cellSize + cellSize / 2;
   ctx.font = `${Math.floor(cellSize * 0.85)}px system-ui`;
@@ -437,7 +455,7 @@ function gameLoop(time) {
   ctx.textBaseline = "middle";
   ctx.fillText(food.emoji, fx, fy);
 
-  // ব্লু রিবন স্নেক বডি
+  // ৩. ব্লু রিবন স্নেক বডি
   if (snake.length > 1) {
     const strokeW = cellSize * 0.76;
 
@@ -461,7 +479,7 @@ function gameLoop(time) {
     ctx.stroke();
   }
 
-  // হেড ও চোখ
+  // ৪. হেড ও চোখ
   const head = snake[0];
   const hx = offsetX + head.x * cellSize + cellSize / 2;
   const hy = offsetY + head.y * cellSize + cellSize / 2;
