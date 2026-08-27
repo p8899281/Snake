@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>YouTube Live Stream AI Snake</title>
+  <title>Google Style AI Snake Pro</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -13,7 +13,7 @@
     <div class="mode-box">
       <h2>SELECT DEVICE MODE</h2>
       <div class="mode-btns">
-        <button onclick="selectMode('mobile')">📱 MOBILE (STREAM MODE)</button>
+        <button onclick="selectMode('mobile')">📱 MOBILE (9:16)</button>
         <button onclick="selectMode('tablet')">📟 TABLET (16:9)</button>
         <button onclick="selectMode('pc')">💻 PC MODE</button>
       </div>
@@ -23,13 +23,13 @@
   <!-- Start Screen with Minutes & Sound -->
   <div id="start-screen" class="overlay-screen hidden">
     <div class="start-box">
-      <div class="start-flags-row">🐍 🍎 ⚡ 💎 👑</div>
-      <h1 class="start-title">LIVE STREAM AI SNAKE</h1>
+      <div class="start-flags-row">🐍 🌶️ 🏆 🍎 🌟</div>
+      <h1 class="start-title">GOOGLE AI SNAKE</h1>
       <div class="start-underline"></div>
       
       <!-- ⏱️ সময় সিলেক্টর -->
       <div class="rounds-selector-box">
-        <div class="rounds-label">STREAM DURATION (MINUTES):</div>
+        <div class="rounds-label">SELECT RUN DURATION:</div>
         <div class="rounds-btn-group">
           <button type="button" class="round-btn" onclick="setSimulationMinutes(1, this)">1 MIN</button>
           <button type="button" class="round-btn" onclick="setSimulationMinutes(3, this)">3 MIN</button>
@@ -41,11 +41,11 @@
 
       <!-- 🎵 সাউন্ড ও মিউজিক -->
       <div class="music-settings-box">
-        <div class="music-label">🎶 BACKGROUND SOUND:</div>
+        <div class="music-label">🎶 SOUND & MUSIC:</div>
         <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
           <option value="google">🕹️ Google Arcade Pop (Default)</option>
-          <option value="cyber">⚡ Cyber Chill Beat</option>
-          <option value="synth">🎵 Lofi Stream Marimba</option>
+          <option value="cyber">⚡ Cyber Glow Beat</option>
+          <option value="synth">🎵 Procedural Synth Beat</option>
           <option value="custom">🔗 Custom MP3 Link</option>
         </select>
 
@@ -60,66 +60,45 @@
         </div>
       </div>
 
+      <!-- 🖥️ ফুলস্ক্রিন চেকবক্স -->
+      <label class="fullscreen-option">
+        <input type="checkbox" id="fullscreenToggle" checked />
+        <span>🖥️ Launch in Fullscreen Mode</span>
+      </label>
+
       <button class="start-battle-btn" onclick="beginBattle()">
-        <span class="play-icon">▶</span> START LIVE STREAM
+        <span class="play-icon">▶</span> START AI SNAKE
       </button>
 
-      <div class="start-footer-text">AUTONOMOUS PATTERN AI · WILL NOT DIE EASILY</div>
+      <div class="start-footer-text">SMART PATTERN AI · WILL NOT DIE EASILY</div>
     </div>
   </div>
 
-  <!-- Main App Layout (Live Stream Mockup) -->
+  <!-- Main Game App -->
   <div id="app" class="hidden">
-    
-    <!-- 🔝 1. YouTube Live Top Streamer Header -->
-    <header class="stream-top-header">
-      <div class="streamer-left">
-        <span class="back-btn">←</span>
-        <div class="streamer-avatar">👩‍🦰</div>
-        <div class="streamer-meta">
-          <div class="streamer-name">@Zindels</div>
-          <div class="streamer-stats">
-            <span class="live-dot">🔴</span> <span id="viewerCount">248</span>
-            <span class="like-icon">👍</span> <span id="likeCount">982</span>
-          </div>
-        </div>
+    <!-- Top Score Bar -->
+    <header class="google-top-bar">
+      <div class="google-bar-item">
+        <span class="bar-icon">🌶️</span>
+        <span class="bar-val" id="topFoodCount">0</span>
       </div>
-      <div class="streamer-right">
-        <button class="yt-sub-btn">Subscribe</button>
-        <span class="menu-dots">⋮</span>
+      <div class="google-bar-item">
+        <span class="bar-icon">🏆</span>
+        <span class="bar-val" id="topBestCount">0</span>
       </div>
     </header>
 
-    <!-- 🎮 2. Game Section Container -->
-    <div class="game-section">
-      <!-- Top Game Bar (Inside Green Frame) -->
-      <div class="game-hud-bar">
-        <div class="hud-score-box">
-          <span class="hud-icon">🌶️</span>
-          <span class="hud-val" id="topFoodCount">0</span>
-        </div>
-        <div class="hud-score-box">
-          <span class="hud-icon">🏆</span>
-          <span class="hud-val" id="topBestCount">0</span>
-        </div>
-        <div class="hud-subscribe-banner">
-          <span class="yt-play-icon">▶</span>
-          <span class="banner-text">SUBSCRIBE</span>
-          <span class="bell-icon">🔔</span>
-          <span class="cursor-pointer">👆</span>
-        </div>
-        <div class="hud-fullscreen-btn" onclick="toggleFullscreen()">⛶</div>
-      </div>
-
-      <!-- Center Snake Arena -->
+    <!-- Main Game Layout (Arena sits towards upper-middle) -->
+    <div class="game-content-layout">
       <div class="arena-container">
         <canvas id="arena"></canvas>
         
+        <!-- Summary Overlay -->
         <div id="winnerOverlay" class="winner-overlay hidden">
-          <div class="round-winner-text">STREAM COMPLETE</div>
+          <div class="round-winner-text" id="winnerHeading">SESSION FINISHED</div>
           <div class="winner-flag-box">👑</div>
           <div class="podium-card gold">
-            <span class="podium-badge">🏆 MAX RUN SCORE 🏆</span>
+            <span class="podium-badge">🏆 MAX SCORE ACHIEVED 🏆</span>
             <div class="podium-name" id="podium1Name">0 Foods</div>
           </div>
           <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
@@ -128,51 +107,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 💬 3. Live Stream Comments & Chat -->
-    <div class="stream-chat-section">
-      <div class="chat-messages-list" id="chatList">
-        <div class="chat-row">
-          <div class="chat-avatar c1">👤</div>
-          <div class="chat-body">
-            <span class="chat-user">@futharp7786</span>
-            <span class="chat-text">Haha AI snake is so smart 🔥</span>
-          </div>
-        </div>
-        <div class="chat-row pinned-row">
-          <div class="chat-avatar c-owner">👩‍🦰</div>
-          <div class="chat-body">
-            <span class="chat-user owner-badge">@Zindels 👑</span>
-            <span class="chat-text">👋 Welcome to the stream! Enjoy the pattern gameplay! ❤️</span>
-          </div>
-        </div>
-        <div class="chat-row">
-          <div class="chat-avatar c2">🅰️</div>
-          <div class="chat-body">
-            <span class="chat-user">@AevrillBriannaCruz</span>
-            <span class="chat-text">said hi ✨</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Chat Input Field -->
-      <div class="chat-input-bar">
-        <span class="chat-hand-icon">👋</span>
-        <input type="text" placeholder="Say 'hi' in the live chat" readonly />
-        <button class="chat-send-btn">Send</button>
-        <span class="heart-react-btn">❤️</span>
-      </div>
-
-      <!-- YouTube Bottom Navigation Bar -->
-      <footer class="yt-bottom-nav">
-        <div class="nav-item active"><span>🏠</span><p>Home</p></div>
-        <div class="nav-item"><span>⚡</span><p>Shorts</p></div>
-        <div class="nav-item add-btn"><span>➕</span></div>
-        <div class="nav-item"><span>📑</span><p>Subscriptions</p></div>
-        <div class="nav-item"><span>👤</span><p>You</p></div>
-      </footer>
-    </div>
-
   </div>
 
   <script src="script.js"></script>
