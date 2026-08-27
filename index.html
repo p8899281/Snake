@@ -13,9 +13,9 @@
     <div class="mode-box">
       <h2>SELECT DEVICE MODE</h2>
       <div class="mode-btns">
-        <button onclick="selectMode('mobile')">📱 MOBILE (9:16 / 1080x1920)</button>
-        <button onclick="selectMode('tablet')">📟 TABLET (16:9 / 1920x1080)</button>
-        <button onclick="selectMode('pc')">💻 PC (AUTO RESPONSIVE)</button>
+        <button onclick="selectMode('mobile')">📱 MOBILE (9:16)</button>
+        <button onclick="selectMode('tablet')">📟 TABLET (16:9)</button>
+        <button onclick="selectMode('pc')">💻 PC (AUTO)</button>
       </div>
     </div>
   </div>
@@ -70,16 +70,15 @@
         <span class="play-icon">▶</span> START AI SNAKE
       </button>
 
-      <div class="start-footer-text">SMOOTH PATTERN AI · CONTINUOUS AUTO RUN</div>
+      <div class="start-footer-text">LONG SURVIVAL AI · REALISTIC PATTERNS</div>
     </div>
   </div>
 
   <!-- Main Game App -->
   <div id="app" class="hidden">
     <div class="game-content-layout">
-      <!-- 🟩 Playground Wrapper (স্কোরবোর্ড ও মাঠ একসাথে) -->
+      <!-- 🟩 Playground Wrapper (স্কোরবোর্ড মাঠের ঠিক ওপরে সংযুক্ত) -->
       <div class="playground-wrapper">
-        <!-- স্কোরবোর্ড ঠিক মাঠের ওপরে -->
         <header class="google-top-bar">
           <div class="google-bar-item">
             <span class="bar-icon">🍎</span>
@@ -91,13 +90,20 @@
           </div>
         </header>
 
-        <!-- এরিনা ক্যানভাস -->
+        <!-- এরিনা ক্যানভাস ও ওভারলে -->
         <div class="arena-container">
           <canvas id="arena"></canvas>
           
-          <!-- Summary Overlay -->
+          <!-- 💀 মৃত্যুর পর ২.৫ সেকেন্ডের জন্য GAME OVER ব্যানার -->
+          <div id="gameOverOverlay" class="game-over-modal hidden">
+            <div class="go-title">GAME OVER</div>
+            <div class="go-score-text">SCORE: <span id="goScoreVal">0</span></div>
+            <div class="go-respawn-bar"><div class="go-respawn-fill"></div></div>
+          </div>
+
+          <!-- 🏁 সেশন টাইম শেষ হওয়ার ফাইনাল রিপোর্ট -->
           <div id="winnerOverlay" class="winner-overlay hidden">
-            <div class="round-winner-text" id="winnerHeading">SESSION OVER</div>
+            <div class="round-winner-text">TIME FINISHED</div>
             <div class="winner-flag-box">👑</div>
             <div class="podium-card gold">
               <span class="podium-badge">🏆 SESSION HIGH SCORE 🏆</span>
