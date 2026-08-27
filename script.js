@@ -225,25 +225,33 @@ function stopBGM() {
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
+// 🔊 সাউন্ড ইফেক্টস (বাঁক নেওয়া, খাবার খাওয়া ও মৃত্যু)
 function playSound(type) {
-  if (!audioCtx || audioCtx.state !== 'running' || !isPlaying) return;
+  if (!audioCtx || !isPlaying) return;
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  
   try {
     const now = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
     if (type === "turn") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(420, now);
-      osc.frequency.exponentialRampToValueAtTime(680, now + 0.028);
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
+      // 🔄 Google Snake স্পষ্ট টার্নিং স্ন্যাপ-পপ সাউন্ড
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(640, now);
+      osc.frequency.exponentialRampToValueAtTime(260, now + 0.055);
+      
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
       
       osc.connect(gain);
-      gain.connect(masterGainNode);
+      gain.connect(masterGainNode || audioCtx.destination);
       osc.start(now);
-      osc.stop(now + 0.03);
+      osc.stop(now + 0.06);
     } else if (type === "eat") {
+      // 🍎 খাবার খাওয়ার পপ সাউন্ড
       osc.type = "sine";
       osc.frequency.setValueAtTime(587.33, now);
       osc.frequency.exponentialRampToValueAtTime(987.77, now + 0.08);
@@ -251,10 +259,11 @@ function playSound(type) {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
       
       osc.connect(gain);
-      gain.connect(masterGainNode);
+      gain.connect(masterGainNode || audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.09);
     } else if (type === "die") {
+      // 💀 মৃত্যুর থাড সাউন্ড
       osc.type = "triangle";
       osc.frequency.setValueAtTime(320, now);
       osc.frequency.exponentialRampToValueAtTime(65, now + 0.32);
@@ -262,7 +271,7 @@ function playSound(type) {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
       
       osc.connect(gain);
-      gain.connect(masterGainNode);
+      gain.connect(masterGainNode || audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.33);
     }
@@ -463,6 +472,7 @@ function updateSnakePhysics() {
 
   const nextDir = getNextAIMove();
 
+  // 🔄 দিক পরিবর্তন করলেই টার্নিং সাউন্ড বাজবে
   if (nextDir.x !== direction.x || nextDir.y !== direction.y) {
     playSound("turn");
   }
@@ -547,7 +557,6 @@ function gameLoop(time) {
 
   // ৩. ব্লু রিবন স্নেক বডি (লেজের দিকে ক্রমশ পাতলা ও সুন্দর টেপার্ড)
   if (snake.length > 1) {
-    // বর্ডার লেয়ার
     for (let i = snake.length - 2; i >= 0; i--) {
       const p1 = { x: offsetX + snake[i].x * cellSize + cellSize / 2, y: offsetY + snake[i].y * cellSize + cellSize / 2 };
       const p2 = { x: offsetX + snake[i + 1].x * cellSize + cellSize / 2, y: offsetY + snake[i + 1].y * cellSize + cellSize / 2 };
@@ -566,7 +575,6 @@ function gameLoop(time) {
       ctx.stroke();
     }
 
-    // মেইন ব্লু বডি লেয়ার
     for (let i = snake.length - 2; i >= 0; i--) {
       const p1 = { x: offsetX + snake[i].x * cellSize + cellSize / 2, y: offsetY + snake[i].y * cellSize + cellSize / 2 };
       const p2 = { x: offsetX + snake[i + 1].x * cellSize + cellSize / 2, y: offsetY + snake[i + 1].y * cellSize + cellSize / 2 };
@@ -591,10 +599,10 @@ function gameLoop(time) {
   const hx = offsetX + head.x * cellSize + cellSize / 2;
   const hy = offsetY + head.y * cellSize + cellSize / 2;
 
-  // 👅 লাল চেরা জিভ অ্যানিমেশন (প্রতি ২.৫ সেকেন্ড পরপর বের হয়ে আবার ঢুকবে)
+  // 👅 লাল চেরা জিভ অ্যানিমেশন
   const tongueCycle = (Date.now() % 2400);
   if (tongueCycle < 500) {
-    const tongueProgress = Math.sin((tongueCycle / 500) * Math.PI); // ০ থেকে ১ হয়ে আবার ০ হবে
+    const tongueProgress = Math.sin((tongueCycle / 500) * Math.PI);
     const tongueLen = (cellSize * 0.55) * tongueProgress;
     const forkLen = cellSize * 0.18 * tongueProgress;
 
@@ -609,13 +617,11 @@ function gameLoop(time) {
     ctx.lineWidth = Math.max(2, cellSize * 0.08);
     ctx.lineCap = "round";
 
-    // মেইন জিভ
     ctx.beginPath();
     ctx.moveTo(baseTx, baseTy);
     ctx.lineTo(tipTx, tipTy);
     ctx.stroke();
 
-    // দুই মুখের চেরা অংশ (Forked Tips)
     const perpX = -direction.y;
     const perpY = direction.x;
 
@@ -633,43 +639,42 @@ function gameLoop(time) {
     ctx.restore();
   }
 
-  // হেড বডি সার্কেল
   ctx.fillStyle = "#3f78fc";
   ctx.beginPath();
   ctx.arc(hx, hy, cellSize * 0.44, 0, Math.PI * 2);
   ctx.fill();
 
-  // 👀 বড় সুন্দর কার্টুন চোখ (Large Cute Eyes with Highlights)
-  const eyeR = cellSize * 0.22;       // বড় চোখের সাদা অংশ
-  const pupilR = cellSize * 0.11;     // কালো তারা
-  const highlightR = cellSize * 0.045;// চকচকে সাদা হাইলাইট
+  // 👀 বড় সুন্দর কার্টুন চোখ
+  const eyeR = cellSize * 0.22;
+  const pupilR = cellSize * 0.11;
+  const highlightR = cellSize * 0.045;
   
   let lx = hx, ly = hy, rx = hx, ry = hy;
   const eyeOffsetSide = cellSize * 0.24;
   const eyeOffsetForward = cellSize * 0.14;
 
-  if (direction.x === 1) { // Right
+  if (direction.x === 1) {
     lx = hx + eyeOffsetForward; ly = hy - eyeOffsetSide;
     rx = hx + eyeOffsetForward; ry = hy + eyeOffsetSide;
-  } else if (direction.x === -1) { // Left
+  } else if (direction.x === -1) {
     lx = hx - eyeOffsetForward; ly = hy - eyeOffsetSide;
     rx = hx - eyeOffsetForward; ry = hy + eyeOffsetSide;
-  } else if (direction.y === 1) { // Down
+  } else if (direction.y === 1) {
     lx = hx - eyeOffsetSide; ly = hy + eyeOffsetForward;
     rx = hx + eyeOffsetSide; ry = hy + eyeOffsetForward;
-  } else { // Up
+  } else {
     lx = hx - eyeOffsetSide; ly = hy - eyeOffsetForward;
     rx = hx + eyeOffsetSide; ry = hy - eyeOffsetForward;
   }
 
-  // ১. চোখের সাদা অংশ
+  // চোখের সাদা অংশ
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(lx, ly, eyeR, 0, Math.PI * 2);
   ctx.arc(rx, ry, eyeR, 0, Math.PI * 2);
   ctx.fill();
 
-  // ২. চোখের কালো তারা (Pupil looking in moving direction)
+  // কালো তারা
   ctx.fillStyle = "#081438";
   const pOffX = direction.x * (eyeR * 0.32);
   const pOffY = direction.y * (eyeR * 0.32);
@@ -678,7 +683,7 @@ function gameLoop(time) {
   ctx.arc(rx + pOffX, ry + pOffY, pupilR, 0, Math.PI * 2);
   ctx.fill();
 
-  // ৩. চোখের ভিতরের চকচকে সাদা গ্লো/হাইলাইট (Cute Eye Reflection)
+  // চোখের গ্লো হাইলাইট
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(lx + pOffX - 1.5, ly + pOffY - 1.5, highlightR, 0, Math.PI * 2);
