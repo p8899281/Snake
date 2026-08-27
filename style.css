@@ -123,7 +123,7 @@ body {
   box-sizing: border-box;
 }
 
-/* 📱 1. Mobile Mode (Portrait 9:16 / 1080x1920) */
+/* 📱 1. Mobile Mode (Portrait 9:16) */
 body.mobile-mode #app { 
   aspect-ratio: 9 / 16;
   height: 100dvh;
@@ -134,7 +134,7 @@ body.mobile-mode #app {
   border-right: 2px solid #1a2c0d;
 }
 
-/* 📟 2. Tablet Mode (Landscape 16:9 / 1920x1080) */
+/* 📟 2. Tablet Mode (Landscape 16:9) */
 body.tablet-mode #app { 
   aspect-ratio: 16 / 9;
   width: 100vw;
@@ -144,7 +144,7 @@ body.tablet-mode #app {
   border: 2px solid #1a2c0d;
 }
 
-/* 💻 3. PC Mode (Auto-Fit Responsive) */
+/* 💻 3. PC Mode (Auto-Fit) */
 body.pc-mode #app { 
   width: 100vw; 
   height: 100dvh; 
@@ -152,16 +152,17 @@ body.pc-mode #app {
   border: none;
 }
 
-/* 🟩 Game Layout (Centered Arena) */
+/* 🟩 Game Layout (Placed in Upper-Middle) */
 .game-content-layout { 
   flex: 1; 
   width: 100%; 
   height: 100%; 
   overflow: hidden; 
   display: flex; 
-  justify-content: center;
+  flex-direction: column;
   align-items: center; 
-  padding: 12px;
+  justify-content: flex-start;
+  padding-top: 24px; /* মাঝামাঝি থেকে সামান্য ওপরের দিকে পজিশন */
 }
 
 .playground-wrapper {
@@ -169,10 +170,10 @@ body.pc-mode #app {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: min(88vw, 80vh);
+  max-width: min(90vw, 76vh);
 }
 
-/* 🍎 স্কোরবোর্ড (প্লে-গ্রাউন্ডের ঠিক ওপরে সংযুক্ত) */
+/* 🍎 স্কোরবোর্ড */
 .google-top-bar {
   width: 100%;
   background: #3b5f20;
@@ -204,8 +205,64 @@ body.pc-mode #app {
 
 canvas { display: block; width: 100%; height: 100%; }
 
-.winner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
-.round-winner-text { color: #ffd23f; font-size: 20px; font-weight: 900; margin-bottom: 8px; }
+/* 💀 GAME OVER MODAL (Smooth 2.5s Auto Respawn) */
+.game-over-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.go-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #ff3b30;
+  letter-spacing: 2px;
+  text-shadow: 0 0 12px rgba(255, 59, 48, 0.7);
+  margin-bottom: 6px;
+}
+
+.go-score-text {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffd23f;
+  margin-bottom: 16px;
+}
+
+.go-respawn-bar {
+  width: 140px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.go-respawn-fill {
+  height: 100%;
+  width: 100%;
+  background: #3f78fc;
+  animation: respawnCountdown 2.4s linear forwards;
+}
+
+@keyframes respawnCountdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Winner/Session Overlay */
+.winner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.88); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30; }
+.round-winner-text { color: #ffd23f; font-size: 22px; font-weight: 900; margin-bottom: 8px; }
 .winner-flag-box { font-size: 44px; margin-bottom: 12px; }
 .podium-card { background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px; width: 80%; text-align: center; border: 1.5px solid #ffd700; }
 .podium-badge { font-size: 11px; font-weight: 900; color: #ffd700; display: block; margin-bottom: 4px; }
