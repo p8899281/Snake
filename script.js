@@ -44,7 +44,7 @@ let snake = [];
 let direction = { x: 1, y: 0 };
 let food = { x: 9, y: 4, emoji: "🍎" };
 let lastMoveTime = 0;
-let moveSpeedMs = 70;
+let moveSpeedMs = 115; // 🐢 গতি ধীর এবং মসৃণ করা হয়েছে
 
 // 🔊 অডিও সিস্টেম
 let audioCtx = null;
@@ -104,7 +104,7 @@ function startBGM() {
         osc.stop(now + 0.13);
         bgmStep++;
       } catch (e) {}
-    }, 150);
+    }, 180);
   }
 }
 
@@ -187,29 +187,38 @@ function beginBattle() {
   requestAnimationFrame(gameLoop);
 }
 
+// 📏 রেজোলিউশন ও এরিনা ক্যালকুলেশন
 function resizeCanvas() {
   if (!canvas) return;
   const rect = canvas.parentElement.getBoundingClientRect();
   
-  canvas.width = rect.width * (window.devicePixelRatio || 1);
-  canvas.height = rect.height * (window.devicePixelRatio || 1);
+  if (selectedDeviceMode === 'mobile') {
+    canvas.width = 1080;
+    canvas.height = 1080;
+  } else if (selectedDeviceMode === 'tablet') {
+    canvas.width = 1080;
+    canvas.height = 1080;
+  } else {
+    const minD = Math.min(rect.width, rect.height) * (window.devicePixelRatio || 1.5);
+    canvas.width = minD;
+    canvas.height = minD;
+  }
+
   viewWidth = canvas.width;
   viewHeight = canvas.height;
 
-  const minDim = Math.min(viewWidth, viewHeight);
-  cellSize = Math.floor(minDim / GRID_SIZE);
+  cellSize = Math.floor(viewWidth / GRID_SIZE);
   squareArenaSize = cellSize * GRID_SIZE;
 
   offsetX = Math.floor((viewWidth - squareArenaSize) / 2);
   offsetY = Math.floor((viewHeight - squareArenaSize) / 2);
 }
 
-// 🔄 মারা গেলে ছোট সাইজে (৩ ব্লক) নতুন করে শুরু
+// 🔄 ছোট সাইজ (৩ ব্লক) দিয়ে নতুন শুরু
 function initSnakeCycle() {
   const startX = 3;
   const startY = Math.floor(GRID_SIZE / 2);
   
-  // ছোট লেন্থ দিয়ে শুরু
   snake = [
     { x: startX, y: startY },
     { x: startX - 1, y: startY },
@@ -217,7 +226,7 @@ function initSnakeCycle() {
   ];
   
   direction = { x: 1, y: 0 };
-  currentRunFood = 0; // কারেন্ট রান স্কোর ০ তে রিসেট
+  currentRunFood = 0;
   spawnFood();
   updateHUD();
 }
@@ -266,7 +275,7 @@ function getNextAIMove() {
     return null;
   }
 
-  // ১. খাবারের পথ খোঁজা ও ভার্চুয়াল সেফটি চেক
+  // ১. নিরাপদ খাবারের পথ
   const pathToFood = findPath(head, food, snake);
   if (pathToFood && pathToFood.length > 0) {
     const virtualSnake = [...snake];
@@ -284,7 +293,7 @@ function getNextAIMove() {
     }
   }
 
-  // ২. লেজ অনুসরন করে বড় স্পেস ফিলিং প্যাটার্ন তৈরি
+  // ২. লেজ অনুসরণ করে দীর্ঘস্থায়ী প্যাটার্ন তৈরি
   const pathToTail = findPath(head, tail, snake);
   if (pathToTail && pathToTail.length > 0) {
     let bestDir = pathToTail[0];
@@ -305,7 +314,6 @@ function getNextAIMove() {
     return bestDir;
   }
 
-  // ৩. বিকল্প নিরাপদ পদক্ষেপ
   for (let d of dirs) {
     const nx = head.x + d.x, ny = head.y + d.y;
     if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
@@ -341,13 +349,11 @@ function countFreeSpaces(startPos) {
 
 function handleSnakeDeath() {
   playSound("die");
-  // মৃত্যুর সময় যদি বর্তমান রান হাই স্কোরকে টপকে যায় তবে হাই স্কোর সেভ হবে
   if (currentRunFood > maxFoodSingleRun) {
     maxFoodSingleRun = currentRunFood;
   }
   updateHUD();
   
-  // ছোট থেকে রিস্টার্ট
   setTimeout(() => { 
     if (isPlaying) initSnakeCycle(); 
   }, 400);
@@ -364,7 +370,6 @@ function updateSnakePhysics() {
 
   snake.unshift(newHead);
 
-  // খাবার খেলে সঠিক কাউন্ট বাড়বে
   if (newHead.x === food.x && newHead.y === food.y) {
     currentRunFood++;
     if (currentRunFood > maxFoodSingleRun) {
@@ -413,11 +418,10 @@ function gameLoop(time) {
     lastMoveTime = time;
   }
 
-  // ১. ব্যাকগ্রাউন্ড
   ctx.fillStyle = "#4a752c";
   ctx.fillRect(0, 0, viewWidth, viewHeight);
 
-  // ২. ডুয়াল গ্রিন চেকারবোর্ড মাঠ
+  // ডুয়াল গ্রিন গ্রাস
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       ctx.fillStyle = (r + c) % 2 === 0 ? "#8ad44a" : "#7ec841";
@@ -425,7 +429,7 @@ function gameLoop(time) {
     }
   }
 
-  // ৩. খাদ্য
+  // খাদ্য
   const fx = offsetX + food.x * cellSize + cellSize / 2;
   const fy = offsetY + food.y * cellSize + cellSize / 2;
   ctx.font = `${Math.floor(cellSize * 0.85)}px system-ui`;
@@ -433,7 +437,7 @@ function gameLoop(time) {
   ctx.textBaseline = "middle";
   ctx.fillText(food.emoji, fx, fy);
 
-  // ৪. ব্লু রিবন স্নেক বডি
+  // ব্লু রিবন স্নেক বডি
   if (snake.length > 1) {
     const strokeW = cellSize * 0.76;
 
@@ -457,7 +461,7 @@ function gameLoop(time) {
     ctx.stroke();
   }
 
-  // ৫. হেড ও চোখ
+  // হেড ও চোখ
   const head = snake[0];
   const hx = offsetX + head.x * cellSize + cellSize / 2;
   const hy = offsetY + head.y * cellSize + cellSize / 2;
