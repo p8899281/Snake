@@ -3,9 +3,9 @@
   --theme-green: #00ff66;
   --theme-yellow: #ffd23f;
   --theme-blue: #00d2ff;
-  --theme-red: #ff4444;
+  --theme-red: #ff3344;
   --text-main: #ffffff;
-  --board-bg: rgba(6, 32, 20, 0.75);
+  --board-bg: rgba(6, 32, 20, 0.85);
 }
 
 * { 
@@ -90,7 +90,7 @@ body {
   width: 92%;
 }
 
-.start-flags-row { font-size: 22px; letter-spacing: 6px; margin-bottom: 8px; }
+.start-flags-row { font-size: 24px; letter-spacing: 6px; margin-bottom: 8px; }
 .start-title { font-size: 19px; font-weight: 900; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px; }
 .start-underline { width: 140px; height: 1px; background: rgba(255, 255, 255, 0.25); margin-bottom: 12px; }
 
@@ -121,7 +121,7 @@ body {
   background: rgba(0, 77, 38, 0.6);
   color: #ffffff;
   border: 1px solid var(--theme-green);
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 800;
@@ -170,9 +170,7 @@ body {
   width: 100%;
 }
 
-.custom-music-wrapper {
-  width: 100%;
-}
+.custom-music-wrapper { width: 100%; }
 
 .custom-music-input {
   width: 100%;
@@ -195,7 +193,7 @@ body {
   color: #ffffff;
 }
 
-.vol-icon { font-size: 10px; color: var(--theme-green); white-space: nowrap; }
+.vol-icon { font-size: 10px; color: var(--theme-green); }
 
 .volume-slider-row input[type="range"] {
   flex: 1;
@@ -220,10 +218,9 @@ body {
   font-weight: 800;
   color: var(--theme-blue);
   cursor: pointer;
-  user-select: none;
 }
 
-.fullscreen-option input { width: 15px; height: 15px; accent-color: var(--theme-yellow); cursor: pointer; }
+.fullscreen-option input { width: 15px; height: 15px; accent-color: var(--theme-yellow); }
 
 .start-battle-btn {
   background: #09122b;
@@ -249,7 +246,7 @@ body {
   box-shadow: 0 0 25px rgba(255, 210, 63, 0.6);
 }
 
-.start-footer-text { margin-top: 14px; font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.4); letter-spacing: 1.2px; }
+.start-footer-text { margin-top: 14px; font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.4); }
 
 .hidden { display: none !important; }
 
@@ -262,11 +259,11 @@ body {
   position: relative; 
 }
 
-.top-header { text-align: center; margin-bottom: 4px; flex-shrink: 0; }
+.top-header { text-align: center; margin-bottom: 6px; flex-shrink: 0; }
 .title { font-size: 18px; font-weight: 900; letter-spacing: 1.5px; color: #fff; }
 .subtitle { font-size: 12px; color: var(--theme-yellow); font-weight: 700; margin-top: 2px; }
 
-/* 📱 1. MOBILE MODE (Portrait 9:16) */
+/* 📱 1. MOBILE MODE */
 body.mobile-mode #app { 
   aspect-ratio: 9 / 16;
   height: 100dvh;
@@ -279,7 +276,7 @@ body.mobile-mode #app {
 
 /* 💻 2. PC MODE */
 body.pc-mode #app { 
-  max-width: 850px; 
+  max-width: 900px; 
   width: 100%;
   padding: 12px 16px; 
   border-radius: 16px; 
@@ -301,12 +298,7 @@ body.pc-mode .game-content-layout {
 body.mobile-mode .qualified-board,
 body.pc-mode .qualified-board {
   width: 100%;
-  margin-bottom: 6px;
-}
-
-body.mobile-mode .eliminated-board,
-body.pc-mode .eliminated-board {
-  display: none !important; 
+  margin-bottom: 8px;
 }
 
 /* 📟 3. TABLET MODE */
@@ -328,67 +320,125 @@ body.tablet-mode .game-content-layout {
   flex-direction: row;
   flex: 1;
   width: 100%;
-  gap: 12px;
+  gap: 14px;
   overflow: hidden;
 }
 
 body.tablet-mode .qualified-board {
-  width: 180px;
+  width: 250px;
   height: 100%;
   flex-shrink: 0;
 }
 
-body.tablet-mode .eliminated-board {
-  display: flex !important;
-  width: 180px;
-  height: 100%;
-  flex-shrink: 0;
-}
-
+/* 📊 STATS DASHBOARD */
 .qualified-board { 
   background: var(--board-bg); 
   border: 1.5px solid rgba(0, 255, 102, 0.35); 
-  border-radius: 10px; 
-  padding: 8px 10px; 
+  border-radius: 12px; 
+  padding: 10px; 
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
   overflow: hidden;
 }
 
 .board-title { 
   text-align: center; 
   font-weight: 800; 
-  margin-bottom: 6px; 
+  margin-bottom: 8px; 
   font-size: 11px; 
   letter-spacing: 1px; 
   color: var(--theme-green); 
 }
 
-.board-list { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 4px; 
-  overflow-y: auto; 
+.snake-stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.stat-card {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.current-run-card { border-color: rgba(0, 255, 102, 0.4); }
+.best-run-card { border-color: rgba(0, 210, 255, 0.4); }
+
+/* 🔴 LAST RUN DEATH CARD (বড় ও আকর্ষণীয়) */
+.last-run-card {
+  border: 1.5px solid var(--theme-red);
+  background: radial-gradient(circle at center, rgba(255, 51, 68, 0.18) 0%, rgba(20, 5, 8, 0.75) 100%);
+  box-shadow: 0 0 15px rgba(255, 51, 68, 0.25);
+}
+
+.stat-card-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--theme-green);
+  margin-bottom: 4px;
+}
+
+.stat-card-badge.red-badge {
+  color: #ff6677;
+  text-shadow: 0 0 8px rgba(255, 51, 68, 0.6);
+}
+
+.stat-card-badge.blue-badge { color: var(--theme-blue); }
+
+.stat-grid-2 {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   flex: 1;
 }
 
-.board-row { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center;
-  font-size: 11px; 
-  font-weight: 700; 
-  background: rgba(0,255,102,0.08); 
-  padding: 4px 8px; 
-  border-radius: 4px; 
-  height: 22px;
+.stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 2px;
 }
 
-.board-row.empty-row { background: transparent; border: none; }
-.rank { color: var(--theme-green); width: 24px; flex-shrink: 0; }
-.country-name { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
-.win-count { color: var(--theme-yellow); flex-shrink: 0; }
+/* 🔢 বড় সংখ্যা ডিজাইন */
+.stat-number {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.stat-number-big {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.neon-green { color: var(--theme-green); text-shadow: 0 0 10px rgba(0,255,102,0.6); }
+.neon-yellow { color: var(--theme-yellow); text-shadow: 0 0 10px rgba(255,210,63,0.6); }
+.neon-red { color: var(--theme-red); text-shadow: 0 0 14px rgba(255,51,68,0.85); }
+.neon-blue { color: var(--theme-blue); text-shadow: 0 0 10px rgba(0,210,255,0.6); }
+
+.prev-run-footer {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(255, 51, 68, 0.3);
+  padding-top: 3px;
+}
 
 .board-footer {
   display: flex;
@@ -400,47 +450,8 @@ body.tablet-mode .eliminated-board {
   font-weight: 800;
 }
 
-.eliminated-board {
-  background: rgba(35, 8, 12, 0.75);
-  border: 1.5px solid rgba(255, 68, 68, 0.35);
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  backdrop-filter: blur(4px);
-  overflow: hidden;
-}
-
-.eliminated-board .board-title {
-  color: var(--theme-yellow);
-  text-align: center;
-  font-weight: 800;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  margin-bottom: 6px;
-}
-
-.eliminated-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.elim-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  background: rgba(0, 210, 255, 0.08);
-  border-left: 2px solid var(--theme-blue);
-  padding: 3px 6px;
-  border-radius: 4px;
-  height: 22px;
-  color: #e5e5e5;
-}
+.rounds-status { color: var(--theme-yellow); }
+.final-countdown { color: var(--theme-blue); }
 
 .arena-container { 
   position: relative; 
@@ -485,7 +496,6 @@ canvas {
 
 .round-winner-text { color: var(--theme-yellow); font-size: 22px; font-weight: 900; margin-bottom: 8px; z-index: 3; }
 .winner-flag-box { font-size: 64px; background: #000; padding: 10px; border-radius: 12px; border: 1px solid #333; z-index: 3; }
-.winner-name { font-size: 22px; font-weight: 800; margin-top: 12px; z-index: 3; }
 
 .podium-container {
   display: flex;
@@ -530,6 +540,5 @@ canvas {
 }
 
 .podium-sub-grid { display: flex; gap: 10px; width: 100%; }
-.podium-badge { font-size: 11px; font-weight: 900; margin-bottom: 4px; }
-.podium-flag { font-size: 32px; margin-bottom: 2px; }
+.podium-badge { font-size: 10px; font-weight: 900; margin-bottom: 4px; }
 .podium-name { font-size: 13px; font-weight: 800; text-align: center; }
