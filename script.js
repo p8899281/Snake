@@ -10,23 +10,12 @@ const els = {
   startScreen: document.getElementById("start-screen"),
   winnerOverlay: document.getElementById("winnerOverlay"),
   winnerHeading: document.getElementById("winnerHeading"),
-  winnerFlagBox: document.getElementById("winnerFlagBox"),
   podiumContainer: document.getElementById("podiumContainer"),
   podium1Name: document.getElementById("podium1Name"),
   podium2Name: document.getElementById("podium2Name"),
   podium3Name: document.getElementById("podium3Name"),
   topAppleCount: document.getElementById("topAppleCount"),
   topBestCount: document.getElementById("topBestCount"),
-  timerText: document.getElementById("timerText"),
-  liveLength: document.getElementById("liveLength"),
-  liveFood: document.getElementById("liveFood"),
-  prevLength: document.getElementById("prevLength"),
-  prevFood: document.getElementById("prevFood"),
-  prevDeathReason: document.getElementById("prevDeathReason"),
-  bestLength: document.getElementById("bestLength"),
-  bestFood: document.getElementById("bestFood"),
-  totalDeathsText: document.getElementById("totalDeathsText"),
-  cycleCountText: document.getElementById("cycleCountText"),
   bgmSelect: document.getElementById("bgmSelect"),
   customMusicInputWrapper: document.getElementById("customMusicInputWrapper"),
   customBgmUrl: document.getElementById("customBgmUrl"),
@@ -39,16 +28,14 @@ let isPlaying = false;
 let selectedDeviceMode = 'mobile';
 let resizeListenerAttached = false;
 
-// ⏱️ টাইমার ও সেশন ডাটা
+// ⏱️ ব্যাকগ্রাউন্ড টাইমার ও সেশন ডাটা
 let SIMULATION_MINUTES = 5;
 let simulationTotalSeconds = 5 * 60;
 let simulationStartTime = 0;
 let currentCycle = 1;
 let totalDeaths = 0;
 let sessionTotalFood = 0;
-
-let bestStats = { length: 3, food: 0 };
-let lastDeathStats = { length: null, food: null, cycle: null, reason: "" };
+let maxFoodSingleRun = 0;
 
 function setSimulationMinutes(mins, btnElement) {
   SIMULATION_MINUTES = parseInt(mins) || 5;
@@ -58,7 +45,7 @@ function setSimulationMinutes(mins, btnElement) {
 }
 
 // 🐍 গুগল স্নেক কনফিগারেশন
-let cols = 17, rows = 15; // Google Snake Standard Proportions
+let cols = 17, rows = 15;
 let cellSize = 24;
 let offsetX = 0, offsetY = 0;
 
@@ -67,9 +54,9 @@ let direction = { x: 1, y: 0 };
 let food = { x: 12, y: 7 };
 let currentRunFood = 0;
 let lastMoveTime = 0;
-let moveSpeedMs = 60; // স্মুথ এবং ফাস্ট অ্যাকশন
+let moveSpeedMs = 60;
 
-// 🎵 AUDIO SYSTEM (Google Arcade Pops)
+// 🎵 AUDIO SYSTEM
 let audioCtx = null;
 let masterVolume = 0.85;
 const customAudioPlayer = new Audio();
@@ -147,7 +134,6 @@ function playSound(type) {
     const gain = audioCtx.createGain();
 
     if (type === "eat") {
-      // 🍎 Google Snake Pop Sound
       osc.type = "sine";
       osc.frequency.setValueAtTime(600, now);
       osc.frequency.exponentialRampToValueAtTime(950, now + 0.07);
@@ -156,7 +142,6 @@ function playSound(type) {
       osc.connect(gain); gain.connect(audioCtx.destination);
       osc.start(now); osc.stop(now + 0.08);
     } else if (type === "die") {
-      // 💀 Crash Thud
       osc.type = "triangle";
       osc.frequency.setValueAtTime(320, now);
       osc.frequency.exponentialRampToValueAtTime(80, now + 0.22);
@@ -190,8 +175,7 @@ function beginBattle() {
   currentCycle = 1;
   totalDeaths = 0;
   sessionTotalFood = 0;
-  bestStats = { length: 3, food: 0 };
-  lastDeathStats = { length: null, food: null, cycle: null, reason: "" };
+  maxFoodSingleRun = 0;
   simulationStartTime = Date.now();
   
   initSnakeCycle();
@@ -221,7 +205,6 @@ function resizeCanvas() {
     confettiCtx.scale(dpr, dpr);
   }
 
-  // 17x15 স্ট্যান্ডার্ড গ্রিড সাইজ ক্যালকুলেশন
   cols = 17;
   rows = 15;
   cellSize = Math.floor(Math.min((viewWidth - 10) / cols, (viewHeight - 10) / rows));
@@ -243,7 +226,7 @@ function initSnakeCycle() {
   direction = { x: 1, y: 0 };
   currentRunFood = 0;
   spawnFood();
-  updateUI();
+  updateTopBar();
 }
 
 function spawnFood() {
@@ -261,7 +244,7 @@ function spawnFood() {
   food = { x: randPos.x, y: randPos.y };
 }
 
-// 🤖 SMART BFS PATHFINDING + TAIL CHASE
+// 🤖 AI BFS PATHFINDING
 function getNextAIMove() {
   const head = snake[0];
   const queue = [{ x: head.x, y: head.y, path: [] }];
@@ -302,7 +285,6 @@ function getNextAIMove() {
     return pathToFood[0];
   }
 
-  // যদি সরাসরি খাদ্য না পায়, তবে ফাঁদ এড়িয়ে চলতে লেজ ফলো করবে
   for (let d of dirs) {
     const nx = head.x + d.x;
     const ny = head.y + d.y;
@@ -315,27 +297,19 @@ function getNextAIMove() {
   return dirs[0];
 }
 
-function handleSnakeDeath(reason = "Self Trap") {
+function handleSnakeDeath() {
   playSound("die");
   totalDeaths++;
-
-  // 🔴 আগের রাউন্ডের ডাটা বড় বড় করে স্টোর করা
-  lastDeathStats = {
-    length: snake.length,
-    food: currentRunFood,
-    cycle: currentCycle,
-    reason: reason
-  };
-
-  if (snake.length > bestStats.length) bestStats.length = snake.length;
-  if (currentRunFood > bestStats.food) bestStats.food = currentRunFood;
-
   currentCycle++;
-  updateUI();
+  
+  if (currentRunFood > maxFoodSingleRun) {
+    maxFoodSingleRun = currentRunFood;
+  }
+  updateTopBar();
 
   setTimeout(() => {
     if (isPlaying) initSnakeCycle();
-  }, 600);
+  }, 500);
 }
 
 function updateSnakePhysics() {
@@ -343,14 +317,13 @@ function updateSnakePhysics() {
   const head = snake[0];
   const newHead = { x: head.x + direction.x, y: head.y + direction.y };
 
-  // দেয়ালে বা নিজের গায়ে লাগলে মৃত্যু
   if (newHead.x < 0 || newHead.x >= cols || newHead.y < 0 || newHead.y >= rows) {
-    handleSnakeDeath("Wall Collision");
+    handleSnakeDeath();
     return;
   }
 
   if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
-    handleSnakeDeath("Body Collision");
+    handleSnakeDeath();
     return;
   }
 
@@ -365,53 +338,31 @@ function updateSnakePhysics() {
     snake.pop();
   }
 
-  if (snake.length > bestStats.length) bestStats.length = snake.length;
-  if (currentRunFood > bestStats.food) bestStats.food = currentRunFood;
-
-  updateUI();
-}
-
-function updateUI() {
-  if (els.topAppleCount) els.topAppleCount.innerText = currentRunFood;
-  if (els.topBestCount) els.topBestCount.innerText = bestStats.food;
-  if (els.cycleCountText) els.cycleCountText.innerText = `CYCLE: #${currentCycle}`;
-  
-  // 🟢 লাইভ রান
-  if (els.liveLength) els.liveLength.innerText = snake.length;
-  if (els.liveFood) els.liveFood.innerText = currentRunFood;
-
-  // 🔴 আগের রাউন্ডে কত লেন্থ ও খাদ্য খেয়ে মারা গেছে
-  if (lastDeathStats.length !== null) {
-    if (els.prevLength) els.prevLength.innerText = lastDeathStats.length;
-    if (els.prevFood) els.prevFood.innerText = lastDeathStats.food;
-    if (els.prevDeathReason) {
-      els.prevDeathReason.innerText = `Cycle #${lastDeathStats.cycle} died due to ${lastDeathStats.reason}`;
-    }
+  if (currentRunFood > maxFoodSingleRun) {
+    maxFoodSingleRun = currentRunFood;
   }
 
-  // 👑 বেস্ট রান
-  if (els.bestLength) els.bestLength.innerText = bestStats.length;
-  if (els.bestFood) els.bestFood.innerText = bestStats.food;
+  updateTopBar();
+}
 
-  if (els.totalDeathsText) els.totalDeathsText.innerText = `DEATHS: ${totalDeaths}`;
+function updateTopBar() {
+  if (els.topAppleCount) els.topAppleCount.innerText = currentRunFood;
+  if (els.topBestCount) els.topBestCount.innerText = maxFoodSingleRun;
 }
 
 function endTournament() {
   isPlaying = false;
   stopBGM();
 
-  if (els.podium1Name) els.podium1Name.innerText = `Length: ${bestStats.length} | Food: ${bestStats.food}`;
+  if (els.podium1Name) els.podium1Name.innerText = `${maxFoodSingleRun} Apples`;
   if (els.podium2Name) els.podium2Name.innerText = `${totalDeaths} Total Deaths`;
-  if (els.podium3Name) els.podium3Name.innerText = `${sessionTotalFood} Apples Eaten`;
+  if (els.podium3Name) els.podium3Name.innerText = `${sessionTotalFood} Apples`;
 
-  if (els.winnerHeading) els.winnerHeading.innerText = "🏆 SESSION TIME FINISHED 🏆";
-  if (els.podiumContainer) els.podiumContainer.classList.remove("hidden");
   if (els.winnerOverlay) els.winnerOverlay.classList.remove("hidden");
 }
 
 function restartTournament() {
   if (els.winnerOverlay) els.winnerOverlay.classList.add("hidden");
-  if (els.podiumContainer) els.podiumContainer.classList.add("hidden");
   if (els.app) els.app.classList.add("hidden");
   if (els.startScreen) els.startScreen.classList.remove("hidden");
   isPlaying = false;
@@ -421,12 +372,9 @@ function restartTournament() {
 function gameLoop(time) {
   if (!isPlaying || !ctx) return;
 
+  // ব্যাকগ্রাউন্ডে টাইমার ট্র্যাকিং (স্ক্রিনে প্রদর্শিত হবে না)
   const elapsed = (Date.now() - simulationStartTime) / 1000;
-  const timeLeft = Math.max(0, simulationTotalSeconds - elapsed);
-  
-  const m = Math.floor(timeLeft / 60);
-  const s = Math.floor(timeLeft % 60);
-  if (els.timerText) els.timerText.innerText = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  const timeLeft = simulationTotalSeconds - elapsed;
 
   if (timeLeft <= 0) {
     endTournament();
@@ -442,7 +390,7 @@ function gameLoop(time) {
   ctx.fillStyle = "#4a752c";
   ctx.fillRect(0, 0, viewWidth, viewHeight);
 
-  // ১. ডুয়াল-গ্রিন চেকারবোর্ড গ্রাস ফিল্ড (Google Snake Authentic Grid)
+  // ১. ডুয়াল-গ্রিন চেকারবোর্ড ফিল্ড
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       ctx.fillStyle = (r + c) % 2 === 0 ? "#aad751" : "#a2d149";
@@ -450,24 +398,23 @@ function gameLoop(time) {
     }
   }
 
-  // ২. লাল আপেল 🍎 রেন্ডার (বাউন্স ইফেক্ট সহ)
+  // ২. লাল আপেল 🍎
   const appleX = offsetX + food.x * cellSize + cellSize / 2;
   const appleY = offsetY + food.y * cellSize + cellSize / 2;
-  
   ctx.font = `${Math.floor(cellSize * 0.9)}px system-ui`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("🍎", appleX, appleY);
 
-  // ৩. গুগল ব্লু স্নেক বডি রেন্ডারিং
+  // ৩. গুগল ব্লু স্নেক বডি
   snake.forEach((seg, i) => {
     const px = offsetX + seg.x * cellSize;
     const py = offsetY + seg.y * cellSize;
     
-    ctx.fillStyle = "#487ff7"; // Google Blue Color
+    ctx.fillStyle = "#487ff7";
 
     if (i === 0) {
-      // 🐍 স্নেক হেড (রাউন্ডেড)
+      // স্নেক হেড
       ctx.beginPath();
       if (ctx.roundRect) {
         ctx.roundRect(px + 1, py + 1, cellSize - 2, cellSize - 2, 8);
@@ -476,7 +423,7 @@ function gameLoop(time) {
       }
       ctx.fill();
 
-      // 👀 অ্যানিমেটেড আই-ট্র্যাকিং (চোখের মণি মুভমেন্ট ডিরেকশনে তাকাবে)
+      // আই-ট্র্যাকিং (চোখের দৃষ্টি)
       const eyeRadius = cellSize * 0.18;
       const pupilRadius = cellSize * 0.09;
       
@@ -496,14 +443,12 @@ function gameLoop(time) {
         rightEyeX = px + cellSize * 0.68; rightEyeY = py + cellSize * 0.68;
       }
 
-      // চোখের সাদা অংশ
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
       ctx.arc(leftEyeX, leftEyeY, eyeRadius, 0, Math.PI * 2);
       ctx.arc(rightEyeX, rightEyeY, eyeRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      // কালো তারা (Pupil)
       ctx.fillStyle = "#000000";
       const pOffX = direction.x * 1.5;
       const pOffY = direction.y * 1.5;
@@ -513,7 +458,7 @@ function gameLoop(time) {
       ctx.fill();
 
     } else {
-      // 🔵 স্নেক বডি সেগমেন্টস
+      // বডি সেগমেন্ট
       ctx.beginPath();
       if (ctx.roundRect) {
         ctx.roundRect(px + 1.5, py + 1.5, cellSize - 3, cellSize - 3, 5);
@@ -527,7 +472,7 @@ function gameLoop(time) {
   requestAnimationFrame(gameLoop);
 }
 
-// গ্লোবাল ফাংশন বাইন্ডিং
+// উইন্ডো ফাংশন
 window.selectMode = selectMode;
 window.setSimulationMinutes = setSimulationMinutes;
 window.handleBgmSelectChange = handleBgmSelectChange;
