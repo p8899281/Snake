@@ -81,10 +81,23 @@
       <!-- 🟩 Playground Wrapper -->
       <div class="playground-wrapper">
         <header class="google-top-bar">
+          <!-- 🍎 Food Counter -->
           <div class="google-bar-item">
             <span class="bar-icon">🍎</span>
             <span class="bar-val" id="topFoodCount">0</span>
           </div>
+
+          <!-- 🔴 মাঝের লাল SUBSCRIBE বাটন ও অ্যানিমেটেড মাউস কার্সর -->
+          <div class="hud-subscribe-container" id="hudSubContainer">
+            <div class="hud-subscribe-btn" id="hudSubBtn">
+              <span class="yt-icon">▶</span>
+              <span class="sub-text" id="hudSubText">SUBSCRIBE</span>
+              <span class="bell-icon" id="hudBellIcon">🔔</span>
+            </div>
+            <div class="animated-mouse-cursor" id="hudCursor">👆</div>
+          </div>
+
+          <!-- 🏆 High Score Counter -->
           <div class="google-bar-item">
             <span class="bar-icon">🏆</span>
             <span class="bar-val" id="topBestCount">0</span>
