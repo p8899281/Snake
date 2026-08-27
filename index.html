@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Google AI Snake Game</title>
+  <title>Google AI Snake Pro</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -13,9 +13,9 @@
     <div class="mode-box">
       <h2>SELECT DEVICE MODE</h2>
       <div class="mode-btns">
-        <button onclick="selectMode('mobile')">📱 MOBILE (9:16)</button>
-        <button onclick="selectMode('tablet')">📟 TABLET (16:9)</button>
-        <button onclick="selectMode('pc')">💻 PC MODE</button>
+        <button onclick="selectMode('mobile')">📱 MOBILE (9:16 / 1080x1920)</button>
+        <button onclick="selectMode('tablet')">📟 TABLET (16:9 / 1920x1080)</button>
+        <button onclick="selectMode('pc')">💻 PC (AUTO RESPONSIVE)</button>
       </div>
     </div>
   </div>
@@ -70,40 +70,43 @@
         <span class="play-icon">▶</span> START AI SNAKE
       </button>
 
-      <div class="start-footer-text">SMART PATTERN AI · CONTINUOUS RUNS</div>
+      <div class="start-footer-text">SMOOTH PATTERN AI · CONTINUOUS AUTO RUN</div>
     </div>
   </div>
 
   <!-- Main Game App -->
   <div id="app" class="hidden">
-    <!-- Top Score Bar -->
-    <header class="google-top-bar">
-      <div class="google-bar-item">
-        <span class="bar-icon">🍎</span>
-        <span class="bar-val" id="topFoodCount">0</span>
-      </div>
-      <div class="google-bar-item">
-        <span class="bar-icon">🏆</span>
-        <span class="bar-val" id="topBestCount">0</span>
-      </div>
-    </header>
-
-    <!-- Main Game Layout -->
     <div class="game-content-layout">
-      <div class="arena-container">
-        <canvas id="arena"></canvas>
-        
-        <!-- Summary Overlay -->
-        <div id="winnerOverlay" class="winner-overlay hidden">
-          <div class="round-winner-text" id="winnerHeading">TIME UP</div>
-          <div class="winner-flag-box">👑</div>
-          <div class="podium-card gold">
-            <span class="podium-badge">🏆 SESSION HIGH SCORE 🏆</span>
-            <div class="podium-name" id="podium1Name">0 Foods</div>
+      <!-- 🟩 Playground Wrapper (স্কোরবোর্ড ও মাঠ একসাথে) -->
+      <div class="playground-wrapper">
+        <!-- স্কোরবোর্ড ঠিক মাঠের ওপরে -->
+        <header class="google-top-bar">
+          <div class="google-bar-item">
+            <span class="bar-icon">🍎</span>
+            <span class="bar-val" id="topFoodCount">0</span>
           </div>
-          <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
-            🔄 PLAY AGAIN
-          </button>
+          <div class="google-bar-item">
+            <span class="bar-icon">🏆</span>
+            <span class="bar-val" id="topBestCount">0</span>
+          </div>
+        </header>
+
+        <!-- এরিনা ক্যানভাস -->
+        <div class="arena-container">
+          <canvas id="arena"></canvas>
+          
+          <!-- Summary Overlay -->
+          <div id="winnerOverlay" class="winner-overlay hidden">
+            <div class="round-winner-text" id="winnerHeading">SESSION OVER</div>
+            <div class="winner-flag-box">👑</div>
+            <div class="podium-card gold">
+              <span class="podium-badge">🏆 SESSION HIGH SCORE 🏆</span>
+              <div class="podium-name" id="podium1Name">0 Foods</div>
+            </div>
+            <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
+              🔄 PLAY AGAIN
+            </button>
+          </div>
         </div>
       </div>
     </div>
