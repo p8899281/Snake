@@ -14,7 +14,11 @@ const els = {
   bgmSelect: document.getElementById("bgmSelect"),
   volumeSlider: document.getElementById("volumeSlider"),
   volumeValueText: document.getElementById("volumeValueText"),
-  fullscreenToggle: document.getElementById("fullscreenToggle")
+  fullscreenToggle: document.getElementById("fullscreenToggle"),
+  hudSubBtn: document.getElementById("hudSubBtn"),
+  hudSubText: document.getElementById("hudSubText"),
+  hudBellIcon: document.getElementById("hudBellIcon"),
+  hudCursor: document.getElementById("hudCursor")
 };
 
 let viewWidth = 0, viewHeight = 0;
@@ -225,7 +229,7 @@ function stopBGM() {
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
-// 🔊 নতুন ও উন্নত সাউন্ড ইফেক্টস
+// 🔊 সাউন্ড এফেক্টস
 function playSound(type) {
   if (!audioCtx || !isPlaying) return;
   if (audioCtx.state === 'suspended') {
@@ -236,7 +240,7 @@ function playSound(type) {
     const now = audioCtx.currentTime;
 
     if (type === "turn") {
-      // 🔄 নতুন মিষ্টি ও সফট উডব্লক বাবল সাউন্ড (Smooth & Pleasing Turn)
+      // 🔄 মিষ্টি উডব্লক বাবল সাউন্ড
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
@@ -252,7 +256,7 @@ function playSound(type) {
       osc.start(now);
       osc.stop(now + 0.04);
     } else if (type === "eat") {
-      // 🍎 খাবার খাওয়ার জোরালো ও ক্রিস্প পাঞ্চি পপ সাউন্ড (Louder & Punchier Pop)
+      // 🍎 খাবার খাওয়ার ক্রিস্প পাঞ্চি পপ সাউন্ড
       const osc1 = audioCtx.createOscillator();
       const gain1 = audioCtx.createGain();
       
@@ -268,7 +272,6 @@ function playSound(type) {
       osc1.start(now);
       osc1.stop(now + 0.10);
 
-      // ক্রিস্প রেজোন্যান্স সাব-লেয়ার
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
 
@@ -300,6 +303,49 @@ function playSound(type) {
       osc.stop(now + 0.33);
     }
   } catch (e) {}
+}
+
+// 🖱️ প্রতি ৩০ সেকেন্ড পর পর মাউস এসে SUBSCRIBE ক্লিক করবে
+function initSubscribeAnimation() {
+  if (!els.hudSubBtn || !els.hudCursor) return;
+
+  function performAutoSubscribeClick() {
+    if (!isPlaying) return;
+
+    // ১. মাউস পয়েন্টার ওপরে উঠবে
+    els.hudCursor.classList.add("cursor-active");
+
+    setTimeout(() => {
+      // ২. মাউস ক্লিক প্রেস
+      els.hudCursor.classList.add("cursor-click");
+      els.hudSubBtn.classList.add("clicked");
+
+      setTimeout(() => {
+        // ৩. বাটন 'SUBSCRIBED' হবে ও বেল কাঁপবে
+        els.hudSubBtn.classList.add("subscribed");
+        if (els.hudSubText) els.hudSubText.innerText = "SUBSCRIBED";
+        if (els.hudBellIcon) els.hudBellIcon.classList.add("bell-ring");
+        els.hudCursor.classList.remove("cursor-click");
+      }, 220);
+
+      // ৪. মাউস পয়েন্টার অদৃশ্য হয়ে চলে যাবে
+      setTimeout(() => {
+        els.hudCursor.classList.remove("cursor-active");
+      }, 1200);
+
+      // ৫. পরবর্তী ৩০ সেকেন্ডের জন্য রিসেট হবে
+      setTimeout(() => {
+        els.hudSubBtn.classList.remove("subscribed", "clicked");
+        if (els.hudSubText) els.hudSubText.innerText = "SUBSCRIBE";
+        if (els.hudBellIcon) els.hudBellIcon.classList.remove("bell-ring");
+      }, 14000);
+
+    }, 600);
+  }
+
+  // প্রথম ক্লিক ৭ সেকেন্ড পর, এরপর থেকে প্রতি ৩০ সেকেন্ডে লাগাতার হবে
+  setTimeout(performAutoSubscribeClick, 7000);
+  setInterval(performAutoSubscribeClick, 30000);
 }
 
 async function triggerFullscreen() {
@@ -339,6 +385,7 @@ function beginBattle() {
   isRespawning = false;
   
   initSnakeCycle();
+  initSubscribeAnimation(); // ৩০ সেকেন্ডের সাবস্ক্রাইব অটো-ক্লিকার চালু
   isPlaying = true;
   startBGM();
   requestAnimationFrame(gameLoop);
@@ -496,7 +543,6 @@ function updateSnakePhysics() {
 
   const nextDir = getNextAIMove();
 
-  // 🔄 দিক পরিবর্তন করলে নতুন টার্ন সাউন্ড বাজবে
   if (nextDir.x !== direction.x || nextDir.y !== direction.y) {
     playSound("turn");
   }
