@@ -22,7 +22,7 @@ let isPlaying = false;
 let isRespawning = false;
 let selectedDeviceMode = 'mobile';
 
-// ⏱️ ডিউরেশন স্টেট (ডিফল্ট ১৫ মিনিট)
+// ⏱️ ডিউরেশন স্টেট
 let SIMULATION_MINUTES = 15;
 let simulationTotalSeconds = 15 * 60;
 let simulationStartTime = 0;
@@ -37,7 +37,7 @@ function setSimulationMinutes(mins, btnElement) {
   if (btnElement) btnElement.classList.add("active");
 }
 
-// 🟩 পারফেক্ট গ্রিড কনফিগারেশন (12x12 Layout)
+// 🟩 গ্রিড কনফিগারেশন (12x12 Layout)
 const GRID_SIZE = 12;
 let cols = GRID_SIZE, rows = GRID_SIZE;
 let cellSize = 24;
@@ -79,9 +79,7 @@ function buildHamiltonianCycle() {
 }
 buildHamiltonianCycle();
 
-// -------------------------------------------------------------
-// 🔊 REAL-TIME DYNAMIC MASTER AUDIO ENGINE
-// -------------------------------------------------------------
+// 🔊 অডিও সিস্টেম
 let audioCtx = null;
 let masterGainNode = null;
 let masterVolume = 0.85;
@@ -116,7 +114,6 @@ function handleBgmSelectChange() {
   }
 }
 
-// 🔊 রিয়েল-টাইম ভলিউম কন্ট্রোল
 function changeVolume(val) {
   masterVolume = parseFloat(val);
   if (isNaN(masterVolume)) masterVolume = 0.85;
@@ -138,9 +135,7 @@ function changeVolume(val) {
 let bgmInterval = null;
 let bgmStep = 0;
 
-// 🎵 মিউজিক ট্র্যাক তালিকা (Original Google Play Games Snake Theme সহ)
 const musicTracks = {
-  // 🍏 Authentic Google Play Games Snake Upbeat Marimba/Chiptune
   google_original: {
     notes: [523.25, 659.25, 783.99, 1046.50, 880.00, 783.99, 659.25, 587.33, 523.25, 659.25, 783.99, 880.00, 783.99, 659.25, 587.33, 493.88],
     bass: [130.81, 130.81, 164.81, 164.81, 174.61, 174.61, 196.00, 196.00],
@@ -187,7 +182,6 @@ function startBGM() {
       try {
         const now = audioCtx.currentTime;
 
-        // মেলোডি অসিলেটর
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         const freq = track.notes[bgmStep % track.notes.length];
@@ -204,7 +198,6 @@ function startBGM() {
         osc.start(now);
         osc.stop(now + 0.13);
 
-        // বেস অসিলেটর
         if (track.bass && bgmStep % 2 === 0) {
           const bassOsc = audioCtx.createOscillator();
           const bassGain = audioCtx.createGain();
@@ -232,7 +225,7 @@ function stopBGM() {
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
-// 🍎 Original Google Snake Crisp Sound Effects
+// 🔊 সাউন্ড এফেক্টস (খাবার খাওয়া, বাঁক নেওয়া ও মৃত্যু)
 function playSound(type) {
   if (!audioCtx || audioCtx.state !== 'running' || !isPlaying) return;
   try {
@@ -240,11 +233,23 @@ function playSound(type) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    if (type === "eat") {
-      // আসল গুগল স্নেকের মতো ক্রিস্প টুইন-পপ
+    if (type === "turn") {
+      // 🔄 বাঁক নেওয়ার সময় হালকা সুইশ/ক্লিক সাউন্ড
       osc.type = "sine";
-      osc.frequency.setValueAtTime(587.33, now); // D5
-      osc.frequency.exponentialRampToValueAtTime(987.77, now + 0.08); // B5
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(680, now + 0.028);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
+      
+      osc.connect(gain);
+      gain.connect(masterGainNode);
+      osc.start(now);
+      osc.stop(now + 0.03);
+    } else if (type === "eat") {
+      // 🍎 খাবার খাওয়ার পপ সাউন্ড
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.exponentialRampToValueAtTime(987.77, now + 0.08);
       gain.gain.setValueAtTime(0.20, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
       
@@ -253,7 +258,7 @@ function playSound(type) {
       osc.start(now);
       osc.stop(now + 0.09);
     } else if (type === "die") {
-      // গুগল স্নেকের ডেথ থাড
+      // 💀 মৃত্যুর থাড সাউন্ড
       osc.type = "triangle";
       osc.frequency.setValueAtTime(320, now);
       osc.frequency.exponentialRampToValueAtTime(65, now + 0.32);
@@ -460,7 +465,14 @@ function handleSnakeDeath() {
 function updateSnakePhysics() {
   if (isRespawning) return;
 
-  direction = getNextAIMove();
+  const nextDir = getNextAIMove();
+
+  // 🔄 দিক পরিবর্তন করলে টার্নিং সাউন্ড বাজবে
+  if (nextDir.x !== direction.x || nextDir.y !== direction.y) {
+    playSound("turn");
+  }
+  direction = nextDir;
+
   const newHead = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
   if (newHead.x < 0 || newHead.x >= cols || newHead.y < 0 || newHead.y >= rows || snake.some(s => s.x === newHead.x && s.y === newHead.y)) {
@@ -485,8 +497,8 @@ function updateSnakePhysics() {
 }
 
 function updateHUD() {
-  if (els.topFoodCount) els.topFoodCount.innerText = currentRunFood;
-  if (els.topBestCount) els.topBestCount.innerText = maxFoodSingleRun;
+  els.topFoodCount.innerText = currentRunFood;
+  els.topBestCount.innerText = maxFoodSingleRun;
 }
 
 function endTournament() {
@@ -504,7 +516,7 @@ function restartTournament() {
   isRespawning = false;
 }
 
-// 🎨 রেন্ডারিং
+// 🎨 রেন্ডারিং (পেছনের দিকে ক্রমশ সরু হওয়া পাতলা লেজ সহ)
 function gameLoop(time) {
   if (!isPlaying || !ctx) return;
 
@@ -538,28 +550,45 @@ function gameLoop(time) {
   ctx.textBaseline = "middle";
   ctx.fillText(food.emoji, fx, fy);
 
-  // ৩. ব্লু রিবন স্নেক বডি
+  // ৩. ব্লু রিবন স্নেক বডি (লেজের দিকে ক্রমশ পাতলা ও টেপার্ড)
   if (snake.length > 1) {
-    const strokeW = cellSize * 0.76;
+    // লেয়ার ১: ডার্ক ব্লু শ্যাডো বর্ডার (লেজের দিকে সরু)
+    for (let i = snake.length - 2; i >= 0; i--) {
+      const p1 = { x: offsetX + snake[i].x * cellSize + cellSize / 2, y: offsetY + snake[i].y * cellSize + cellSize / 2 };
+      const p2 = { x: offsetX + snake[i + 1].x * cellSize + cellSize / 2, y: offsetY + snake[i + 1].y * cellSize + cellSize / 2 };
+      
+      const tailProgress = (i + 1) / snake.length; // ০ (মাথা) থেকে ১ (লেজ)
+      const taperFactor = Math.max(0.32, 1 - Math.pow(tailProgress, 1.4) * 0.68);
+      const strokeW = cellSize * 0.74 * taperFactor;
 
-    ctx.beginPath();
-    ctx.strokeStyle = "#2b56bf";
-    ctx.lineWidth = strokeW + 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    for (let i = 0; i < snake.length; i++) {
-      const px = offsetX + snake[i].x * cellSize + cellSize / 2;
-      const py = offsetY + snake[i].y * cellSize + cellSize / 2;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+      ctx.beginPath();
+      ctx.strokeStyle = "#2b56bf";
+      ctx.lineWidth = strokeW + 4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
     }
-    ctx.stroke();
 
-    ctx.beginPath();
-    ctx.strokeStyle = "#3f78fc";
-    ctx.lineWidth = strokeW;
-    ctx.stroke();
+    // লেয়ার ২: মেইন ব্রাইট ব্লু বডি (লেজের দিকে সরু)
+    for (let i = snake.length - 2; i >= 0; i--) {
+      const p1 = { x: offsetX + snake[i].x * cellSize + cellSize / 2, y: offsetY + snake[i].y * cellSize + cellSize / 2 };
+      const p2 = { x: offsetX + snake[i + 1].x * cellSize + cellSize / 2, y: offsetY + snake[i + 1].y * cellSize + cellSize / 2 };
+      
+      const tailProgress = (i + 1) / snake.length;
+      const taperFactor = Math.max(0.32, 1 - Math.pow(tailProgress, 1.4) * 0.68);
+      const strokeW = cellSize * 0.74 * taperFactor;
+
+      ctx.beginPath();
+      ctx.strokeStyle = "#3f78fc";
+      ctx.lineWidth = strokeW;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
   }
 
   // ৪. হেড ও চোখ
