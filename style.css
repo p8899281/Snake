@@ -244,7 +244,7 @@ body.pc-mode #app {
   100% { transform: rotate(15deg); }
 }
 
-/* 👆 অ্যানিমেটেড মাউস কার্সর (৩০ সেকেন্ডে এসে ক্লিক করবে) */
+/* 👆 অ্যানিমেটেড মাউস কার্সর */
 .animated-mouse-cursor {
   position: absolute;
   right: -8px;
