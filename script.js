@@ -34,6 +34,34 @@ let simulationStartTime = 0;
 let currentRunFood = 0;
 let maxFoodSingleRun = 0;
 
+// 💡 SCREEN WAKE LOCK SYSTEM (ভিডিও চলার মতো স্ক্রিন অন রাখবে)
+let wakeLock = null;
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+    }
+  } catch (err) {
+    console.log("Wake Lock status:", err);
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock !== null) {
+    wakeLock.release().then(() => {
+      wakeLock = null;
+    });
+  }
+}
+
+// ট্যাব সুইচ বা ব্যাকগ্রাউন্ড থেকে ফিরলে অটোমেটিক অন থাকবে
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible" && isPlaying) {
+    await requestWakeLock();
+  }
+});
+
 function setSimulationMinutes(mins, btnElement) {
   SIMULATION_MINUTES = parseInt(mins) || 15;
   simulationTotalSeconds = SIMULATION_MINUTES * 60;
@@ -240,7 +268,6 @@ function playSound(type) {
     const now = audioCtx.currentTime;
 
     if (type === "turn") {
-      // 🔄 মিষ্টি উডব্লক বাবল সাউন্ড
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
@@ -256,7 +283,6 @@ function playSound(type) {
       osc.start(now);
       osc.stop(now + 0.04);
     } else if (type === "eat") {
-      // 🍎 খাবার খাওয়ার ক্রিস্প পাঞ্চি পপ সাউন্ড
       const osc1 = audioCtx.createOscillator();
       const gain1 = audioCtx.createGain();
       
@@ -287,7 +313,6 @@ function playSound(type) {
       osc2.start(now);
       osc2.stop(now + 0.08);
     } else if (type === "die") {
-      // 💀 মৃত্যুর থাড সাউন্ড
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
@@ -312,28 +337,23 @@ function initSubscribeAnimation() {
   function performAutoSubscribeClick() {
     if (!isPlaying) return;
 
-    // ১. মাউস পয়েন্টার ওপরে উঠবে
     els.hudCursor.classList.add("cursor-active");
 
     setTimeout(() => {
-      // ২. মাউস ক্লিক প্রেস
       els.hudCursor.classList.add("cursor-click");
       els.hudSubBtn.classList.add("clicked");
 
       setTimeout(() => {
-        // ৩. বাটন 'SUBSCRIBED' হবে ও বেল কাঁপবে
         els.hudSubBtn.classList.add("subscribed");
         if (els.hudSubText) els.hudSubText.innerText = "SUBSCRIBED";
         if (els.hudBellIcon) els.hudBellIcon.classList.add("bell-ring");
         els.hudCursor.classList.remove("cursor-click");
       }, 220);
 
-      // ৪. মাউস পয়েন্টার অদৃশ্য হয়ে চলে যাবে
       setTimeout(() => {
         els.hudCursor.classList.remove("cursor-active");
       }, 1200);
 
-      // ৫. পরবর্তী ৩০ সেকেন্ডের জন্য রিসেট হবে
       setTimeout(() => {
         els.hudSubBtn.classList.remove("subscribed", "clicked");
         if (els.hudSubText) els.hudSubText.innerText = "SUBSCRIBE";
@@ -343,7 +363,6 @@ function initSubscribeAnimation() {
     }, 600);
   }
 
-  // প্রথম ক্লিক ৭ সেকেন্ড পর, এরপর থেকে প্রতি ৩০ সেকেন্ডে লাগাতার হবে
   setTimeout(performAutoSubscribeClick, 7000);
   setInterval(performAutoSubscribeClick, 30000);
 }
@@ -368,6 +387,7 @@ function selectMode(mode) {
 
 function beginBattle() {
   initAudioEngine();
+  requestWakeLock(); // 💡 স্ক্রিন অন রাখার লক চালু করা হলো
   
   if (els.fullscreenToggle && els.fullscreenToggle.checked) {
     triggerFullscreen();
@@ -385,7 +405,7 @@ function beginBattle() {
   isRespawning = false;
   
   initSnakeCycle();
-  initSubscribeAnimation(); // ৩০ সেকেন্ডের সাবস্ক্রাইব অটো-ক্লিকার চালু
+  initSubscribeAnimation();
   isPlaying = true;
   startBGM();
   requestAnimationFrame(gameLoop);
@@ -446,7 +466,7 @@ function spawnFood() {
   }
 }
 
-// 🤖 SMART HAMILTONIAN CYCLE + SHORTCUT HUNTING AI
+// 🤖 HAMILTONIAN CYCLE + SHORTCUT AI
 const DIRS = [
   { x: 0, y: -1 },
   { x: 1, y: 0 },
@@ -578,12 +598,14 @@ function updateHUD() {
 
 function endTournament() {
   isPlaying = false;
+  releaseWakeLock(); // 💡 স্ক্রিন লক রিলিজ
   stopBGM();
   if (els.podium1Name) els.podium1Name.innerText = `${maxFoodSingleRun} Foods Collected`;
   if (els.winnerOverlay) els.winnerOverlay.classList.remove("hidden");
 }
 
 function restartTournament() {
+  releaseWakeLock();
   if (els.winnerOverlay) els.winnerOverlay.classList.add("hidden");
   if (els.app) els.app.classList.add("hidden");
   if (els.startScreen) els.startScreen.classList.remove("hidden");
@@ -625,7 +647,7 @@ function gameLoop(time) {
   ctx.textBaseline = "middle";
   ctx.fillText(food.emoji, fx, fy);
 
-  // ৩. ব্লু রিবন স্নেক বডি (লেজের দিকে সুন্দর টেপার্ড)
+  // ৩. ব্লু রিবন স্নেক বডি
   if (snake.length > 1) {
     for (let i = snake.length - 2; i >= 0; i--) {
       const p1 = { x: offsetX + snake[i].x * cellSize + cellSize / 2, y: offsetY + snake[i].y * cellSize + cellSize / 2 };
@@ -669,7 +691,7 @@ function gameLoop(time) {
   const hx = offsetX + head.x * cellSize + cellSize / 2;
   const hy = offsetY + head.y * cellSize + cellSize / 2;
 
-  // 👅 লাল চেরা জিভ অ্যানিমেশন
+  // 👅 লাল চেরা জিভ
   const tongueCycle = (Date.now() % 2400);
   if (tongueCycle < 500) {
     const tongueProgress = Math.sin((tongueCycle / 500) * Math.PI);
@@ -714,7 +736,7 @@ function gameLoop(time) {
   ctx.arc(hx, hy, cellSize * 0.44, 0, Math.PI * 2);
   ctx.fill();
 
-  // 👀 বড় সুন্দর কার্টুন চোখ
+  // 👀 চোখ
   const eyeR = cellSize * 0.22;
   const pupilR = cellSize * 0.11;
   const highlightR = cellSize * 0.045;
