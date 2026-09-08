@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Google AI Snake Pro</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Mode Selection Screen -->
+  <div id="mode-selector" class="overlay-screen">
+    <div class="mode-box">
+      <h2>SELECT DEVICE MODE</h2>
+      <div class="mode-btns">
+        <button onclick="selectMode('mobile')">📱 MOBILE (9:16)</button>
+        <button onclick="selectMode('tablet')">📟 TABLET (16:9)</button>
+        <button onclick="selectMode('pc')">💻 PC (AUTO)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Screen with Minutes & Sound -->
+  <div id="start-screen" class="overlay-screen hidden">
+    <div class="start-box">
+      <div class="start-flags-row">🐍 🍎 🏆 🌶️ 🌟</div>
+      <h1 class="start-title">GOOGLE AI SNAKE</h1>
+      <div class="start-underline"></div>
+      
+      <!-- ⏱️ সময় সিলেক্টর -->
+      <div class="rounds-selector-box">
+        <div class="rounds-label">SELECT RUN DURATION:</div>
+        <div class="rounds-btn-group">
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(1, this)">1 MIN</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(3, this)">3 MIN</button>
+          <button type="button" class="round-btn active" onclick="setSimulationMinutes(15, this)">15 MIN</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(30, this)">30 MIN</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(60, this)">60 MIN</button>
+        </div>
+      </div>
+
+      <!-- 🎵 সাউন্ড ও মিউজিক সেটিংস -->
+      <div class="music-settings-box">
+        <div class="music-label">🎶 BACKGROUND MUSIC VOLUME:</div>
+        <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
+          <option value="google_original">🍏 Original Google Snake Theme (Play Games)</option>
+          <option value="google">🕹️ Google Arcade Pop</option>
+          <option value="cyber">⚡ Cyber Glow Beat</option>
+          <option value="synth">🎵 Procedural Synth Beat</option>
+          <option value="custom">🔗 Custom MP3 Link</option>
+        </select>
+
+        <div id="customMusicInputWrapper" class="custom-music-wrapper hidden">
+          <input type="text" id="customBgmUrl" class="custom-music-input" placeholder="Paste direct .mp3 link..." />
+        </div>
+
+        <div class="volume-slider-row">
+          <span class="vol-icon">🔊 MUSIC VOL:</span>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.85" oninput="changeVolume(this.value)" />
+          <span id="volumeValueText" class="vol-percent">85%</span>
+        </div>
+      </div>
+
+      <!-- 🖥️ ফুলস্ক্রিন চেকবক্স -->
+      <label class="fullscreen-option">
+        <input type="checkbox" id="fullscreenToggle" checked />
+        <span>🖥️ Launch in Fullscreen Mode</span>
+      </label>
+
+      <button class="start-battle-btn" onclick="beginBattle()">
+        <span class="play-icon">▶</span> START AI SNAKE
+      </button>
+
+      <div class="start-footer-text">LONG SURVIVAL AI · REALISTIC PATTERNS</div>
+    </div>
+  </div>
+
+  <!-- Main Game App -->
+  <div id="app" class="hidden">
+    <div class="game-content-layout">
+      <!-- 🟩 Playground Wrapper -->
+      <div class="playground-wrapper">
+        <header class="google-top-bar">
+          <!-- 🍎 Food Counter -->
+          <div class="google-bar-item">
+            <span class="bar-icon">🍎</span>
+            <span class="bar-val" id="topFoodCount">0</span>
+          </div>
+
+          <!-- 🔴 মাঝের লাল SUBSCRIBE বাটন ও অ্যানিমেটেড মাউস কার্সর -->
+          <div class="hud-subscribe-container" id="hudSubContainer">
+            <div class="hud-subscribe-btn" id="hudSubBtn">
+              <span class="yt-icon">▶</span>
+              <span class="sub-text" id="hudSubText">SUBSCRIBE</span>
+              <span class="bell-icon" id="hudBellIcon">🔔</span>
+            </div>
+            <div class="animated-mouse-cursor" id="hudCursor">👆</div>
+          </div>
+
+          <!-- 🏆 High Score Counter -->
+          <div class="google-bar-item">
+            <span class="bar-icon">🏆</span>
+            <span class="bar-val" id="topBestCount">0</span>
+          </div>
+        </header>
+
+        <!-- এরিনা ক্যানভাস ও ওভারলে -->
+        <div class="arena-container">
+          <canvas id="arena"></canvas>
+          
+          <!-- 💀 মৃত্যুর পর ২.৫ সেকেন্ডের জন্য GAME OVER ব্যানার -->
+          <div id="gameOverOverlay" class="game-over-modal hidden">
+            <div class="go-title">GAME OVER</div>
+            <div class="go-score-text">SCORE: <span id="goScoreVal">0</span></div>
+            <div class="go-respawn-bar"><div class="go-respawn-fill"></div></div>
+          </div>
+
+          <!-- 🏁 সেশন টাইম শেষ হওয়ার ফাইনাল রিপোর্ট -->
+          <div id="winnerOverlay" class="winner-overlay hidden">
+            <div class="round-winner-text">TIME FINISHED</div>
+            <div class="winner-flag-box">👑</div>
+            <div class="podium-card gold">
+              <span class="podium-badge">🏆 SESSION HIGH SCORE 🏆</span>
+              <div class="podium-name" id="podium1Name">0 Foods</div>
+            </div>
+            <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
+              🔄 PLAY AGAIN
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
