@@ -1,140 +1,173 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Google AI Snake Pro - Visual Pattern AI</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Snake Game</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #121212;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: sans-serif;
+        }
+        canvas {
+            border: 3px solid #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+            background-color: #1e1e1e;
+        }
+    </style>
 </head>
 <body>
 
-  <!-- Mode Selection Screen -->
-  <div id="mode-selector" class="overlay-screen">
-    <div class="mode-box">
-      <h2>SELECT DEVICE MODE</h2>
-      <div class="mode-btns">
-        <button onclick="selectMode('mobile')">📱 MOBILE (9:16)</button>
-        <button onclick="selectMode('tablet')">📟 TABLET (16:9)</button>
-        <button onclick="selectMode('pc')">💻 PC (AUTO)</button>
-      </div>
-    </div>
-  </div>
+<canvas id="gameCanvas" width="400" height="400"></canvas>
 
-  <!-- Start Screen with Minutes & Sound -->
-  <div id="start-screen" class="overlay-screen hidden">
-    <div class="start-box">
-      <div class="start-flags-row">🐍 🍎 🏆 🌶️ 🌟</div>
-      <h1 class="start-title">GOOGLE AI SNAKE</h1>
-      <div class="start-underline"></div>
-      
-      <!-- ⏱️ সময় সিলেক্টর -->
-      <div class="rounds-selector-box">
-        <div class="rounds-label">SELECT RUN DURATION:</div>
-        <div class="rounds-btn-group">
-          <button type="button" class="round-btn" onclick="setSimulationMinutes(1, this)">1 MIN</button>
-          <button type="button" class="round-btn" onclick="setSimulationMinutes(3, this)">3 MIN</button>
-          <button type="button" class="round-btn active" onclick="setSimulationMinutes(15, this)">15 MIN</button>
-          <button type="button" class="round-btn" onclick="setSimulationMinutes(30, this)">30 MIN</button>
-          <button type="button" class="round-btn" onclick="setSimulationMinutes(60, this)">60 MIN</button>
-        </div>
-      </div>
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-      <!-- 🎵 সাউন্ড ও মিউজিক সেটিংস -->
-      <div class="music-settings-box">
-        <div class="music-label">🎶 BACKGROUND MUSIC VOLUME:</div>
-        <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
-          <option value="google_original">🍏 Original Google Snake Theme (Play Games)</option>
-          <option value="google">🕹️ Google Arcade Pop</option>
-          <option value="cyber">⚡ Cyber Glow Beat</option>
-          <option value="synth">🎵 Procedural Synth Beat</option>
-          <option value="custom">🔗 Custom MP3 Link</option>
-        </select>
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
 
-        <div id="customMusicInputWrapper" class="custom-music-wrapper hidden">
-          <input type="text" id="customBgmUrl" class="custom-music-input" placeholder="Paste direct .mp3 link..." />
-        </div>
+    let snake = [
+        { x: 10, y: 10 },
+        { x: 10, y: 11 },
+        { x: 10, y: 12 }
+    ];
 
-        <div class="volume-slider-row">
-          <span class="vol-icon">🔊 MUSIC VOL:</span>
-          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.85" oninput="changeVolume(this.value)" />
-          <span id="volumeValueText" class="vol-percent">85%</span>
-        </div>
-      </div>
+    let food = { x: 5, y: 5 };
+    let dx = 0;
+    let dy = -1;
+    let score = 0;
 
-      <!-- 🖥️ ফুলস্ক্রিন চেকবক্স -->
-      <label class="fullscreen-option">
-        <input type="checkbox" id="fullscreenToggle" checked />
-        <span>🖥️ Launch in Fullscreen Mode</span>
-      </label>
+    function placeFood() {
+        food.x = Math.floor(Math.random() * tileCount);
+        food.y = Math.floor(Math.random() * tileCount);
+        for (let segment of snake) {
+            if (segment.x === food.x && segment.y === food.y) {
+                placeFood();
+                break;
+            }
+        }
+    }
 
-      <button class="start-battle-btn" onclick="beginBattle()">
-        <span class="play-icon">▶</span> START AI SNAKE
-      </button>
+    // খাবার খুঁজে সরাসরি যাওয়ার জন্য সঠিক AI দিশা নির্ধারণ
+    function getNextAIMove() {
+        const head = snake[0];
+        const possibleMoves = [
+            { x: 0, y: -1 }, // Up
+            { x: 0, y: 1 },  // Down
+            { x: -1, y: 0 }, // Left
+            { x: 1, y: 0 }   // Right
+        ];
 
-      <div class="start-footer-text">MULTI-PATTERN AI · VISUAL MOVEMENT PATTERNS</div>
-    </div>
-  </div>
+        // দেয়ালে বা নিজের গায়ে ধাক্কা না লাগার মতো বৈধ মুভ বাছাই
+        let validMoves = possibleMoves.filter(move => {
+            if (move.x === -dx && move.y === -dy) return false;
 
-  <!-- Main Game App -->
-  <div id="app" class="hidden">
-    <div class="game-content-layout">
-      <!-- 🟩 Playground Wrapper -->
-      <div class="playground-wrapper">
-        <header class="google-top-bar">
-          <!-- 🍎 Food Counter -->
-          <div class="google-bar-item">
-            <span class="bar-icon">🍎</span>
-            <span class="bar-val" id="topFoodCount">0</span>
-          </div>
+            let newX = head.x + move.x;
+            let newY = head.y + move.y;
 
-          <!-- 🔴 মাঝের লাল SUBSCRIBE বাটন ও অ্যানিমেটেড মাউস কার্সর -->
-          <div class="hud-subscribe-container" id="hudSubContainer">
-            <div class="hud-subscribe-btn" id="hudSubBtn">
-              <span class="yt-icon">▶</span>
-              <span class="sub-text" id="hudSubText">SUBSCRIBE</span>
-              <span class="bell-icon" id="hudBellIcon">🔔</span>
-            </div>
-            <div class="animated-mouse-cursor" id="hudCursor">👆</div>
-          </div>
+            if (newX < 0 || newX >= tileCount || newY < 0 || newY >= tileCount) return false;
 
-          <!-- 🏆 High Score Counter -->
-          <div class="google-bar-item">
-            <span class="bar-icon">🏆</span>
-            <span class="bar-val" id="topBestCount">0</span>
-          </div>
-        </header>
+            for (let i = 0; i < snake.length - 1; i++) {
+                if (snake[i].x === newX && snake[i].y === newY) return false;
+            }
 
-        <!-- এরিনা ক্যানভাস ও ওভারলে -->
-        <div class="arena-container">
-          <canvas id="arena"></canvas>
-          
-          <!-- 🎨 কারেন্ট প্যাটার্ন ইন্ডিকেটর বাবেল -->
-          <div id="patternBadge" class="pattern-badge">⚡ ZIG-ZAG WAVE</div>
-          
-          <!-- 💀 মৃত্যুর পর ২.৫ সেকেন্ডের জন্য GAME OVER ব্যানার -->
-          <div id="gameOverOverlay" class="game-over-modal hidden">
-            <div class="go-title">GAME OVER</div>
-            <div class="go-score-text">SCORE: <span id="goScoreVal">0</span></div>
-            <div class="go-respawn-bar"><div class="go-respawn-fill"></div></div>
-          </div>
+            return true;
+        });
 
-          <!-- 🏁 সেশন টাইম শেষ হওয়ার ফাইনাল রিপোর্ট -->
-          <div id="winnerOverlay" class="winner-overlay hidden">
-            <div class="round-winner-text">TIME FINISHED</div>
-            <div class="winner-flag-box">👑</div>
-            <div class="podium-card gold">
-              <span class="podium-badge">🏆 SESSION HIGH SCORE 🏆</span>
-              <div class="podium-name" id="podium1Name">0 Foods</div>
-            </div>
-            <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
-              🔄 PLAY AGAIN
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+        if (validMoves.length === 0) {
+            validMoves = possibleMoves.filter(move => {
+                let newX = head.x + move.x;
+                let newY = head.y + move.y;
+                return newX >= 0 && newX < tileCount && newY >= 0 && newY < tileCount;
+            });
+        }
 
-  <script src="script.js"></script>
+        // খাবারের সবচেয়ে কাছে নিয়ে যাওয়া পথটি বেছে নেওয়া
+        if (validMoves.length > 0) {
+            validMoves.sort((a, b) => {
+                let distA = Math.abs((head.x + a.x) - food.x) + Math.abs((head.y + a.y) - food.y);
+                let distB = Math.abs((head.x + b.x) - food.x) + Math.abs((head.y + b.y) - food.y);
+                return distA - distB;
+            });
+
+            dx = validMoves[0].x;
+            dy = validMoves[0].y;
+        }
+    }
+
+    function gameLoop() {
+        getNextAIMove();
+
+        const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+        if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+            resetGame();
+            return;
+        }
+
+        for (let i = 0; i < snake.length; i++) {
+            if (snake[i].x === head.x && snake[i].y === head.y) {
+                resetGame();
+                return;
+            }
+        }
+
+        snake.unshift(head);
+
+        if (head.x === food.x && head.y === food.y) {
+            score += 10;
+            placeFood();
+        } else {
+            snake.pop();
+        }
+
+        draw();
+    }
+
+    function resetGame() {
+        snake = [
+            { x: 10, y: 10 },
+            { x: 10, y: 11 },
+            { x: 10, y: 12 }
+        ];
+        dx = 0;
+        dy = -1;
+        score = 0;
+        placeFood();
+    }
+
+    function draw() {
+        ctx.fillStyle = "#1e1e1e";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // খাবার আঁকা
+        ctx.fillStyle = "#FF5722";
+        ctx.beginPath();
+        ctx.arc(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // সাপ আঁকা
+        snake.forEach((segment, index) => {
+            ctx.fillStyle = index === 0 ? "#4CAF50" : "#81C784";
+            ctx.fillRect(segment.x * gridSize + 1, segment.y * gridSize + 1, gridSize - 2, gridSize - 2);
+        });
+
+        // স্কোরের লেখা
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "16px sans-serif";
+        ctx.fillText("Score: " + score, 10, 25);
+    }
+
+    placeFood();
+    setInterval(gameLoop, 100);
+</script>
 </body>
 </html>
