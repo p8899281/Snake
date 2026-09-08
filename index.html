@@ -41,7 +41,7 @@
 
       <!-- 🎵 সাউন্ড ও মিউজিক সেটিংস -->
       <div class="music-settings-box">
-        <div class="music-label">🎶 SOUND & MUSIC:</div>
+        <div class="music-label">🎶 BACKGROUND MUSIC VOLUME:</div>
         <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
           <option value="google_original">🍏 Original Google Snake Theme (Play Games)</option>
           <option value="google">🕹️ Google Arcade Pop</option>
@@ -55,7 +55,7 @@
         </div>
 
         <div class="volume-slider-row">
-          <span class="vol-icon">🔊 VOLUME:</span>
+          <span class="vol-icon">🔊 MUSIC VOL:</span>
           <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.85" oninput="changeVolume(this.value)" />
           <span id="volumeValueText" class="vol-percent">85%</span>
         </div>
