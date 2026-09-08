@@ -18,7 +18,8 @@ const els = {
   hudSubBtn: document.getElementById("hudSubBtn"),
   hudSubText: document.getElementById("hudSubText"),
   hudBellIcon: document.getElementById("hudBellIcon"),
-  hudCursor: document.getElementById("hudCursor")
+  hudCursor: document.getElementById("hudCursor"),
+  patternBadge: document.getElementById("patternBadge")
 };
 
 let viewWidth = 0, viewHeight = 0;
@@ -34,7 +35,7 @@ let simulationStartTime = 0;
 let currentRunFood = 0;
 let maxFoodSingleRun = 0;
 
-// 💡 SCREEN WAKE LOCK SYSTEM (স্ক্রিন সবসময় অন রাখার ফিচার)
+// 💡 SCREEN WAKE LOCK SYSTEM
 let wakeLock = null;
 
 async function requestWakeLock() {
@@ -42,16 +43,12 @@ async function requestWakeLock() {
     if ('wakeLock' in navigator) {
       wakeLock = await navigator.wakeLock.request('screen');
     }
-  } catch (err) {
-    console.log("Wake Lock status:", err);
-  }
+  } catch (err) {}
 }
 
 function releaseWakeLock() {
   if (wakeLock !== null) {
-    wakeLock.release().then(() => {
-      wakeLock = null;
-    });
+    wakeLock.release().then(() => { wakeLock = null; });
   }
 }
 
@@ -110,7 +107,23 @@ function buildHamiltonianCycle() {
 }
 buildHamiltonianCycle();
 
-// 🔊 অডিও ইঞ্জিনের আলাদা অডিও চ্যানেল (BGM Gain & SFX Gain Separated)
+// 🎨 VISUAL AI MOVEMENT PATTERNS
+const PATTERNS = [
+  { name: "⚡ ZIG-ZAG WAVE", mode: "zigzag" },
+  { name: "🌀 SPIRAL HUNTER", mode: "spiral" },
+  { name: "🌊 S-CURVE FLOW", mode: "scurve" },
+  { name: "🏰 BORDER PATROL", mode: "border" },
+  { name: "🎯 ADAPTIVE SHORTCUT", mode: "hamiltonian" }
+];
+let currentPatternIndex = 0;
+
+function updatePatternBadge() {
+  if (els.patternBadge) {
+    els.patternBadge.innerText = PATTERNS[currentPatternIndex].name;
+  }
+}
+
+// 🔊 অডিও চ্যানেল (BGM & SFX Separated)
 let audioCtx = null;
 let bgmGainNode = null;
 let sfxGainNode = null;
@@ -124,12 +137,10 @@ function initAudioEngine() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
     
-    // 🎵 ১. ব্যাকগ্রাউন্ড মিউজিক চ্যানেল (ভলিউম স্লাইডার দ্বারা নিয়ন্ত্রিত)
     bgmGainNode = audioCtx.createGain();
     bgmGainNode.gain.setValueAtTime(bgmVolume, audioCtx.currentTime);
     bgmGainNode.connect(audioCtx.destination);
 
-    // 🔊 ২. গেম সাউন্ড এফেক্টস চ্যানেল (সম্পূর্ণ স্বাধীন ও উচ্চ ভলিউমে ফিক্সড)
     sfxGainNode = audioCtx.createGain();
     sfxGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
     sfxGainNode.connect(audioCtx.destination);
@@ -154,7 +165,6 @@ function handleBgmSelectChange() {
   }
 }
 
-// 🎛️ শুধুমাত্র ব্যাকগ্রাউন্ড মিউজিকের ভলিউম কমানো/বাড়ানোর ফাংশন
 function changeVolume(val) {
   bgmVolume = parseFloat(val);
   if (isNaN(bgmVolume)) bgmVolume = 0.85;
@@ -235,7 +245,7 @@ function startBGM() {
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
 
         osc.connect(gain);
-        gain.connect(bgmGainNode); // 🎶 Connected strictly to BGM Node
+        gain.connect(bgmGainNode);
         osc.start(now);
         osc.stop(now + 0.13);
 
@@ -250,7 +260,7 @@ function startBGM() {
           bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
 
           bassOsc.connect(bassGain);
-          bassGain.connect(bgmGainNode); // 🎶 Connected strictly to BGM Node
+          bassGain.connect(bgmGainNode);
           bassOsc.start(now);
           bassOsc.stop(now + 0.24);
         }
@@ -266,7 +276,7 @@ function stopBGM() {
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
-// 🔊 গেমের সাউন্ড এফেক্টস (সাপ ঘোরা ও খাওয়ার শব্দ দ্বিগুণ লাউড ও স্বাধীন)
+// 🔊 সাউন্ড এফেক্টস (সাপের মোড় ঘোরার শব্দ ও খাবার খাওয়ার শব্দ)
 function playSound(type) {
   if (!audioCtx || !isPlaying) return;
   if (audioCtx.state === 'suspended') {
@@ -277,7 +287,6 @@ function playSound(type) {
     const now = audioCtx.currentTime;
 
     if (type === "turn") {
-      // ↩️ সাপের মোড় ঘোরা সাউন্ড (Volume boosted: 0.16 -> 0.42)
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
@@ -293,7 +302,6 @@ function playSound(type) {
       osc.start(now);
       osc.stop(now + 0.045);
     } else if (type === "eat") {
-      // 🍎 খাবার খাওয়ার সাউন্ড (Volume boosted: 0.48 -> 0.88)
       const osc1 = audioCtx.createOscillator();
       const gain1 = audioCtx.createGain();
       
@@ -324,7 +332,6 @@ function playSound(type) {
       osc2.start(now);
       osc2.stop(now + 0.09);
     } else if (type === "die") {
-      // 💀 মৃত্যুর সাউন্ড
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
@@ -342,7 +349,7 @@ function playSound(type) {
   } catch (e) {}
 }
 
-// 🖱️ প্রতি ৩০ সেকেন্ড পর পর মাউস এসে SUBSCRIBE ক্লিক করবে
+// 🖱️ SUBSCRIBE অটো-ক্লিক অ্যানিমেশন
 function initSubscribeAnimation() {
   if (!els.hudSubBtn || !els.hudCursor) return;
 
@@ -384,8 +391,6 @@ async function triggerFullscreen() {
   try {
     if (docEl.requestFullscreen) await docEl.requestFullscreen();
     else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
-    else if (docEl.mozRequestFullScreen) await docEl.mozRequestFullScreen();
-    else if (docEl.msRequestFullscreen) await docEl.msRequestFullscreen();
   } catch (err) {}
 }
 
@@ -415,9 +420,11 @@ function beginBattle() {
   currentRunFood = 0;
   maxFoodSingleRun = 0;
   isRespawning = false;
+  currentPatternIndex = 0;
   
   initSnakeCycle();
   initSubscribeAnimation();
+  updatePatternBadge();
   isPlaying = true;
   startBGM();
   requestAnimationFrame(gameLoop);
@@ -478,7 +485,7 @@ function spawnFood() {
   }
 }
 
-// 🤖 HAMILTONIAN CYCLE + SHORTCUT AI
+// 🤖 VISUAL MULTI-PATTERN AI MOVEMENT SYSTEM
 const DIRS = [
   { x: 0, y: -1 },
   { x: 1, y: 0 },
@@ -500,6 +507,7 @@ function getNextAIMove() {
   const distHeadToTail = cycleDist(headIdx, tailIdx);
   const distHeadToFood = cycleDist(headIdx, foodIdx);
 
+  // বৈধ চালের তালিকা তৈরি
   const candidates = [];
   for (const d of DIRS) {
     const nx = head.x + d.x;
@@ -516,10 +524,98 @@ function getNextAIMove() {
   const hamiltonianNextIdx = (headIdx + 1) % TOTAL_CELLS;
   let hamiltonianStep = candidates.find(c => c.nextIdx === hamiltonianNextIdx);
 
-  if (snake.length > TOTAL_CELLS * 0.70 && hamiltonianStep) {
+  // যদি সাপের সাইজ অত্যন্ত বড় হয়ে যায় (>75%), নিরাপত্তার্থে হ্যামিল্টোনিয়ান লুপে চলে যাবে
+  if (snake.length > TOTAL_CELLS * 0.75 && hamiltonianStep) {
     return hamiltonianStep.dir;
   }
 
+  const activeMode = PATTERNS[currentPatternIndex].mode;
+
+  // 🎨 ১. ZIG-ZAG WAVE MOVEMENT MODE
+  if (activeMode === "zigzag") {
+    // জিগ-জ্যাগ ওয়েভে কলাম ধরে ওয়েভ আকারে মুভ করবে
+    let bestZigzag = null;
+    let minScore = Infinity;
+
+    for (const cand of candidates) {
+      const distHeadToNext = cycleDist(headIdx, cand.nextIdx);
+      if (distHeadToNext < distHeadToTail - 3) {
+        // পছন্দ করবে অল্টারনেটিং ভার্টিক্যাল ওয়েভ
+        const isPreferredColumnWave = (cand.nextPos.x % 2 === 0) ? (cand.dir.y === 1) : (cand.dir.y === -1);
+        const distToFood = Math.abs(cand.nextPos.x - food.x) + Math.abs(cand.nextPos.y - food.y);
+        const score = distToFood + (isPreferredColumnWave ? 0 : 3);
+
+        if (score < minScore) {
+          minScore = score;
+          bestZigzag = cand;
+        }
+      }
+    }
+    if (bestZigzag) return bestZigzag.dir;
+  }
+
+  // 🌀 ২. SPIRAL LOOP HUNTER MODE
+  if (activeMode === "spiral") {
+    let bestSpiral = null;
+    let minCenterDist = Infinity;
+
+    for (const cand of candidates) {
+      const distHeadToNext = cycleDist(headIdx, cand.nextIdx);
+      if (distHeadToNext < distHeadToTail - 3) {
+        // স্পাইরালে সেন্টারের দিকে রোটেশন ধরে মুভ করবে
+        const distToFood = Math.abs(cand.nextPos.x - food.x) + Math.abs(cand.nextPos.y - food.y);
+        if (distToFood < minCenterDist) {
+          minCenterDist = distToFood;
+          bestSpiral = cand;
+        }
+      }
+    }
+    if (bestSpiral) return bestSpiral.dir;
+  }
+
+  // 🌊 ৩. S-CURVE FLOW MODE
+  if (activeMode === "scurve") {
+    let bestSCurve = null;
+    let minVal = Infinity;
+
+    for (const cand of candidates) {
+      const distHeadToNext = cycleDist(headIdx, cand.nextIdx);
+      if (distHeadToNext < distHeadToTail - 3) {
+        const rowWave = (cand.nextPos.y % 2 === 0) ? (cand.dir.x === 1) : (cand.dir.x === -1);
+        const distToFood = Math.abs(cand.nextPos.x - food.x) + Math.abs(cand.nextPos.y - food.y);
+        const score = distToFood + (rowWave ? 0 : 4);
+
+        if (score < minVal) {
+          minVal = score;
+          bestSCurve = cand;
+        }
+      }
+    }
+    if (bestSCurve) return bestSCurve.dir;
+  }
+
+  // 🏰 ৪. BORDER SCAN PATROL
+  if (activeMode === "border") {
+    let bestBorder = null;
+    let maxBorderScore = -1;
+
+    for (const cand of candidates) {
+      const distHeadToNext = cycleDist(headIdx, cand.nextIdx);
+      if (distHeadToNext < distHeadToTail - 3) {
+        const isAtEdge = (cand.nextPos.x === 0 || cand.nextPos.x === cols - 1 || cand.nextPos.y === 0 || cand.nextPos.y === rows - 1);
+        const distToFood = Math.abs(cand.nextPos.x - food.x) + Math.abs(cand.nextPos.y - food.y);
+        const score = (isAtEdge ? 10 : 0) - distToFood;
+
+        if (score > maxBorderScore) {
+          maxBorderScore = score;
+          bestBorder = cand;
+        }
+      }
+    }
+    if (bestBorder) return bestBorder.dir;
+  }
+
+  // 🎯 ৫. ADAPTIVE SHORTCUT MODE
   let bestShortcut = null;
   let minFoodDist = distHeadToFood;
   const safetyBuffer = Math.max(3, Math.floor(snake.length * 0.2));
@@ -536,13 +632,8 @@ function getNextAIMove() {
     }
   }
 
-  if (bestShortcut) {
-    return bestShortcut.dir;
-  }
-
-  if (hamiltonianStep) {
-    return hamiltonianStep.dir;
-  }
+  if (bestShortcut) return bestShortcut.dir;
+  if (hamiltonianStep) return hamiltonianStep.dir;
 
   return candidates[0].dir;
 }
@@ -594,6 +685,13 @@ function updateSnakePhysics() {
     if (currentRunFood > maxFoodSingleRun) {
       maxFoodSingleRun = currentRunFood;
     }
+    
+    // 🎨 প্রতি ৪টি খাবার খাওয়ার পর সাপ নিজে থেকেই মুভমেন্ট প্যাটার্ন পরিবর্তন করবে
+    if (currentRunFood % 4 === 0) {
+      currentPatternIndex = (currentPatternIndex + 1) % PATTERNS.length;
+      updatePatternBadge();
+    }
+
     playSound("eat");
     spawnFood();
   } else {
@@ -625,7 +723,7 @@ function restartTournament() {
   isRespawning = false;
 }
 
-// 🎨 রেন্ডারিং
+// 🎨 ক্যানভাস রেন্ডারিং
 function gameLoop(time) {
   if (!isPlaying || !ctx) return;
 
