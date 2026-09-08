@@ -34,7 +34,7 @@ let simulationStartTime = 0;
 let currentRunFood = 0;
 let maxFoodSingleRun = 0;
 
-// 💡 SCREEN WAKE LOCK SYSTEM (ভিডিও চলার মতো স্ক্রিন অন রাখবে)
+// 💡 SCREEN WAKE LOCK SYSTEM (স্ক্রিন সবসময় অন রাখার ফিচার)
 let wakeLock = null;
 
 async function requestWakeLock() {
@@ -55,7 +55,6 @@ function releaseWakeLock() {
   }
 }
 
-// ট্যাব সুইচ বা ব্যাকগ্রাউন্ড থেকে ফিরলে অটোমেটিক অন থাকবে
 document.addEventListener("visibilitychange", async () => {
   if (document.visibilityState === "visible" && isPlaying) {
     await requestWakeLock();
@@ -111,10 +110,12 @@ function buildHamiltonianCycle() {
 }
 buildHamiltonianCycle();
 
-// 🔊 অডিও সিস্টেম
+// 🔊 অডিও ইঞ্জিনের আলাদা অডিও চ্যানেল (BGM Gain & SFX Gain Separated)
 let audioCtx = null;
-let masterGainNode = null;
-let masterVolume = 0.85;
+let bgmGainNode = null;
+let sfxGainNode = null;
+let bgmVolume = 0.85;
+
 const customAudioPlayer = new Audio();
 customAudioPlayer.loop = true;
 
@@ -122,9 +123,16 @@ function initAudioEngine() {
   if (!audioCtx) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
-    masterGainNode = audioCtx.createGain();
-    masterGainNode.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
-    masterGainNode.connect(audioCtx.destination);
+    
+    // 🎵 ১. ব্যাকগ্রাউন্ড মিউজিক চ্যানেল (ভলিউম স্লাইডার দ্বারা নিয়ন্ত্রিত)
+    bgmGainNode = audioCtx.createGain();
+    bgmGainNode.gain.setValueAtTime(bgmVolume, audioCtx.currentTime);
+    bgmGainNode.connect(audioCtx.destination);
+
+    // 🔊 ২. গেম সাউন্ড এফেক্টস চ্যানেল (সম্পূর্ণ স্বাধীন ও উচ্চ ভলিউমে ফিক্সড)
+    sfxGainNode = audioCtx.createGain();
+    sfxGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+    sfxGainNode.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -146,21 +154,22 @@ function handleBgmSelectChange() {
   }
 }
 
+// 🎛️ শুধুমাত্র ব্যাকগ্রাউন্ড মিউজিকের ভলিউম কমানো/বাড়ানোর ফাংশন
 function changeVolume(val) {
-  masterVolume = parseFloat(val);
-  if (isNaN(masterVolume)) masterVolume = 0.85;
+  bgmVolume = parseFloat(val);
+  if (isNaN(bgmVolume)) bgmVolume = 0.85;
   
   if (els.volumeValueText) {
-    els.volumeValueText.innerText = `${Math.round(masterVolume * 100)}%`;
+    els.volumeValueText.innerText = `${Math.round(bgmVolume * 100)}%`;
   }
   
-  if (masterGainNode && audioCtx) {
-    masterGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-    masterGainNode.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
+  if (bgmGainNode && audioCtx) {
+    bgmGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    bgmGainNode.gain.setValueAtTime(bgmVolume, audioCtx.currentTime);
   }
   
   if (customAudioPlayer) {
-    customAudioPlayer.volume = masterVolume;
+    customAudioPlayer.volume = bgmVolume;
   }
 }
 
@@ -202,7 +211,7 @@ function startBGM() {
     let url = document.getElementById("customBgmUrl").value.trim();
     if (url) {
       customAudioPlayer.src = url;
-      customAudioPlayer.volume = masterVolume;
+      customAudioPlayer.volume = bgmVolume;
       customAudioPlayer.play().catch(() => {});
     }
   } else {
@@ -226,7 +235,7 @@ function startBGM() {
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
 
         osc.connect(gain);
-        gain.connect(masterGainNode);
+        gain.connect(bgmGainNode); // 🎶 Connected strictly to BGM Node
         osc.start(now);
         osc.stop(now + 0.13);
 
@@ -241,7 +250,7 @@ function startBGM() {
           bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
 
           bassOsc.connect(bassGain);
-          bassGain.connect(masterGainNode);
+          bassGain.connect(bgmGainNode); // 🎶 Connected strictly to BGM Node
           bassOsc.start(now);
           bassOsc.stop(now + 0.24);
         }
@@ -257,7 +266,7 @@ function stopBGM() {
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
-// 🔊 সাউন্ড এফেক্টস
+// 🔊 গেমের সাউন্ড এফেক্টস (সাপ ঘোরা ও খাওয়ার শব্দ দ্বিগুণ লাউড ও স্বাধীন)
 function playSound(type) {
   if (!audioCtx || !isPlaying) return;
   if (audioCtx.state === 'suspended') {
@@ -268,62 +277,65 @@ function playSound(type) {
     const now = audioCtx.currentTime;
 
     if (type === "turn") {
+      // ↩️ সাপের মোড় ঘোরা সাউন্ড (Volume boosted: 0.16 -> 0.42)
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
       osc.type = "sine";
       osc.frequency.setValueAtTime(520, now);
-      osc.frequency.exponentialRampToValueAtTime(280, now + 0.035);
+      osc.frequency.exponentialRampToValueAtTime(280, now + 0.04);
       
-      gain.gain.setValueAtTime(0.16, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+      gain.gain.setValueAtTime(0.42, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
       
       osc.connect(gain);
-      gain.connect(masterGainNode || audioCtx.destination);
+      gain.connect(sfxGainNode || audioCtx.destination);
       osc.start(now);
-      osc.stop(now + 0.04);
+      osc.stop(now + 0.045);
     } else if (type === "eat") {
+      // 🍎 খাবার খাওয়ার সাউন্ড (Volume boosted: 0.48 -> 0.88)
       const osc1 = audioCtx.createOscillator();
       const gain1 = audioCtx.createGain();
       
       osc1.type = "sine";
       osc1.frequency.setValueAtTime(620, now);
-      osc1.frequency.exponentialRampToValueAtTime(1250, now + 0.09);
+      osc1.frequency.exponentialRampToValueAtTime(1250, now + 0.10);
       
-      gain1.gain.setValueAtTime(0.48, now);
-      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      gain1.gain.setValueAtTime(0.88, now);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
       
       osc1.connect(gain1);
-      gain1.connect(masterGainNode || audioCtx.destination);
+      gain1.connect(sfxGainNode || audioCtx.destination);
       osc1.start(now);
-      osc1.stop(now + 0.10);
+      osc1.stop(now + 0.11);
 
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
 
       osc2.type = "triangle";
       osc2.frequency.setValueAtTime(310, now);
-      osc2.frequency.exponentialRampToValueAtTime(625, now + 0.07);
+      osc2.frequency.exponentialRampToValueAtTime(625, now + 0.08);
 
-      gain2.gain.setValueAtTime(0.25, now);
-      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      gain2.gain.setValueAtTime(0.50, now);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
 
       osc2.connect(gain2);
-      gain2.connect(masterGainNode || audioCtx.destination);
+      gain2.connect(sfxGainNode || audioCtx.destination);
       osc2.start(now);
-      osc2.stop(now + 0.08);
+      osc2.stop(now + 0.09);
     } else if (type === "die") {
+      // 💀 মৃত্যুর সাউন্ড
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
       osc.type = "triangle";
       osc.frequency.setValueAtTime(320, now);
       osc.frequency.exponentialRampToValueAtTime(65, now + 0.32);
-      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.setValueAtTime(0.45, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
       
       osc.connect(gain);
-      gain.connect(masterGainNode || audioCtx.destination);
+      gain.connect(sfxGainNode || audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.33);
     }
@@ -387,7 +399,7 @@ function selectMode(mode) {
 
 function beginBattle() {
   initAudioEngine();
-  requestWakeLock(); // 💡 স্ক্রিন অন রাখার লক চালু করা হলো
+  requestWakeLock();
   
   if (els.fullscreenToggle && els.fullscreenToggle.checked) {
     triggerFullscreen();
@@ -598,7 +610,7 @@ function updateHUD() {
 
 function endTournament() {
   isPlaying = false;
-  releaseWakeLock(); // 💡 স্ক্রিন লক রিলিজ
+  releaseWakeLock();
   stopBGM();
   if (els.podium1Name) els.podium1Name.innerText = `${maxFoodSingleRun} Foods Collected`;
   if (els.winnerOverlay) els.winnerOverlay.classList.remove("hidden");
