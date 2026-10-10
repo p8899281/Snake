@@ -89,18 +89,21 @@ let direction = { x: 1, y: 0 };
 let foods = []; // { x, y, emoji, name }
 
 // 🍎 চ্যাট-ফুড সেটিংস (এখানে নিজের মতো বদলাতে পারবেন)
-const DROP_INTERVAL_MS = 5000;   // কত মিলিসেকেন্ড পর পর নতুন ফুড পড়বে (কম = দ্রুত বোর্ড ভরবে)
-const AUTO_FOOD_TARGET = 3;      // নামহীন অটো ফুড সর্বোচ্চ কয়টা বোর্ডে থাকবে
+const DROP_INTERVAL_MS = 2500;   // কত মিলিসেকেন্ড পর পর নামহীন অটো ফুড পড়বে (কম = দ্রুত)
+const AUTO_FOOD_TARGET = 4;      // নামহীন অটো ফুড সর্বোচ্চ কয়টা বোর্ডে থাকবে
+const VOTE_DRAIN_MS = 800;       // চ্যাটের নামের ফুড কত মিলিসেকেন্ড পর পর পড়বে (লাইনে থাকা ভোট থেকে)
+const MAX_WAITING_VOTES = 30;    // লাইনে সর্বোচ্চ কতজনের নাম অপেক্ষায় থাকবে
 const MAX_FOODS_ON_BOARD = 10;   // মোট ফুড সর্বোচ্চ
 const VICTORY_PAUSE_MS = 6000;   // ১০০% ভরার পর কতক্ষণ জয়ের স্ক্রিন
 const MAX_NAME_CHARS = 12;       // বোর্ডে নামের সর্বোচ্চ অক্ষর
 let dropTimer = null;
+let voteTimer = null;
 let isVictory = false;
 let boardsCompleted = 0;
 const roundVoters = new Map();   // এই রাউন্ডে যারা 1 লিখেছে
 const popups = [];
 let lastMoveTime = 0;
-let moveSpeedMs = 110;
+let moveSpeedMs = 160; // সাপের গতি: বেশি = ধীর (আগে 110 ছিল)
 
 // 🧠 HAMILTONIAN CYCLE LOOKUP TABLE
 const H_GRID = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
@@ -424,7 +427,10 @@ function updateVoterCount() {
 function addVote(rawName) {
   const name = String(rawName || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 40);
   if (!name) return;
-  roundVoters.set(name.toLowerCase(), name);
+  const key = name.toLowerCase();
+  if (foods.some(f => f.name && f.name.toLowerCase() === key)) return; // এই নামের ফুড এখনো বোর্ডে আছে
+  if (!roundVoters.has(key) && roundVoters.size >= MAX_WAITING_VOTES) return;
+  roundVoters.set(key, name);
   updateVoterCount();
 }
 
@@ -593,29 +599,32 @@ function testChatConnection() {
   connectChat(s.url, s.key, s.interval);
 }
 
-// 🍎 প্রতি কয়েক সেকেন্ডে অটো ফুড + চ্যাটের ভোটারদের মধ্য থেকে একজনের নামে এক্সট্রা ফুড
+// 🍎 নামহীন অটো ফুড (কেউ চ্যাট না করলেও খাবার পড়বে)
 function dropTick() {
   if (!isPlaying || isRespawning || isVictory) return;
-
   const autoCount = foods.filter(f => !f.name).length;
   if (autoCount < AUTO_FOOD_TARGET) spawnFood();
+}
 
-  if (roundVoters.size > 0) {
-    const names = Array.from(roundVoters.values());
-    const winner = names[Math.floor(Math.random() * names.length)];
-    roundVoters.clear();
-    updateVoterCount();
-    spawnFood(winner);
-  }
+// 💬 চ্যাটে 1 লিখলেই লাইনের সামনের জনের নামে সাথে সাথে ফুড (প্রতি ~১ সেকেন্ডে একটা)
+function drainVotes() {
+  if (!isPlaying || isRespawning || isVictory) return;
+  if (roundVoters.size === 0 || foods.length >= MAX_FOODS_ON_BOARD) return;
+  const [key, name] = roundVoters.entries().next().value;
+  roundVoters.delete(key);
+  updateVoterCount();
+  spawnFood(name);
 }
 
 function startDropTimer() {
   stopDropTimer();
   dropTimer = setInterval(dropTick, DROP_INTERVAL_MS);
+  voteTimer = setInterval(drainVotes, VOTE_DRAIN_MS);
 }
 
 function stopDropTimer() {
   if (dropTimer) { clearInterval(dropTimer); dropTimer = null; }
+  if (voteTimer) { clearInterval(voteTimer); voteTimer = null; }
 }
 
 function addPopup(text, gx, gy) {
