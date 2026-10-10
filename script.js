@@ -89,14 +89,12 @@ let direction = { x: 1, y: 0 };
 let foods = []; // { x, y, emoji, name }
 
 // 🍎 চ্যাট-ফুড সেটিংস (এখানে নিজের মতো বদলাতে পারবেন)
-const DROP_INTERVAL_MS = 2500;   // কত মিলিসেকেন্ড পর পর নামহীন অটো ফুড পড়বে (কম = দ্রুত)
-const AUTO_FOOD_TARGET = 4;      // নামহীন অটো ফুড সর্বোচ্চ কয়টা বোর্ডে থাকবে
+const AUTO_FOOD_TARGET = 4;      // নামহীন অটো ফুড সবসময় কয়টা বোর্ডে থাকবে (একটা খেলেই সাথে সাথে নতুন আসে)
 const VOTE_DRAIN_MS = 800;       // চ্যাটের নামের ফুড কত মিলিসেকেন্ড পর পর পড়বে (লাইনে থাকা ভোট থেকে)
 const MAX_WAITING_VOTES = 30;    // লাইনে সর্বোচ্চ কতজনের নাম অপেক্ষায় থাকবে
 const MAX_FOODS_ON_BOARD = 10;   // মোট ফুড সর্বোচ্চ
 const VICTORY_PAUSE_MS = 6000;   // ১০০% ভরার পর কতক্ষণ জয়ের স্ক্রিন
 const MAX_NAME_CHARS = 12;       // বোর্ডে নামের সর্বোচ্চ অক্ষর
-let dropTimer = null;
 let voteTimer = null;
 let isVictory = false;
 let boardsCompleted = 0;
@@ -599,16 +597,19 @@ function testChatConnection() {
   connectChat(s.url, s.key, s.interval);
 }
 
-// 🍎 নামহীন অটো ফুড (কেউ চ্যাট না করলেও খাবার পড়বে)
-function dropTick() {
-  if (!isPlaying || isRespawning || isVictory) return;
-  const autoCount = foods.filter(f => !f.name).length;
-  if (autoCount < AUTO_FOOD_TARGET) spawnFood();
+// 🍎 নামহীন অটো ফুড: সবসময় AUTO_FOOD_TARGET টা থাকবে — একটা খেলেই সাথে সাথে নতুন একটা আসে
+function refillAutoFoods() {
+  let autoCount = foods.filter(f => !f.name).length;
+  while (autoCount < AUTO_FOOD_TARGET) {
+    if (!spawnFood()) break;
+    autoCount++;
+  }
 }
 
 // 💬 চ্যাটে 1 লিখলেই লাইনের সামনের জনের নামে সাথে সাথে ফুড (প্রতি ~১ সেকেন্ডে একটা)
 function drainVotes() {
   if (!isPlaying || isRespawning || isVictory) return;
+  refillAutoFoods(); // নিরাপত্তা: কোনো কারণে কম পড়লে পূরণ
   if (roundVoters.size === 0 || foods.length >= MAX_FOODS_ON_BOARD) return;
   const [key, name] = roundVoters.entries().next().value;
   roundVoters.delete(key);
@@ -618,12 +619,10 @@ function drainVotes() {
 
 function startDropTimer() {
   stopDropTimer();
-  dropTimer = setInterval(dropTick, DROP_INTERVAL_MS);
   voteTimer = setInterval(drainVotes, VOTE_DRAIN_MS);
 }
 
 function stopDropTimer() {
-  if (dropTimer) { clearInterval(dropTimer); dropTimer = null; }
   if (voteTimer) { clearInterval(voteTimer); voteTimer = null; }
 }
 
@@ -697,6 +696,24 @@ function initSubscribeAnimation() {
   setInterval(performAutoSubscribeClick, 30000);
 }
 
+let fullscreenWanted = false;
+
+function isFullscreenNow() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+// 🖥️ ফুলস্ক্রিন থেকে বেরিয়ে গেলে (যেমন Back চাপলে) স্ক্রিনের যেকোনো জায়গায় ট্যাপ করলেই আবার ফুলস্ক্রিন
+document.addEventListener("click", () => {
+  if (isPlaying && fullscreenWanted && !isFullscreenNow()) triggerFullscreen();
+});
+
+// ⬅️ Back চাপলে যেন পেজ ছেড়ে চলে না যায় (গেম হারিয়ে নতুন করে শুরু করতে না হয়)
+window.addEventListener("popstate", () => {
+  if (isPlaying) {
+    try { history.pushState({ snake: 1 }, ""); } catch (err) {}
+  }
+});
+
 async function triggerFullscreen() {
   const docEl = document.documentElement;
   try {
@@ -719,9 +736,11 @@ function beginBattle() {
   initAudioEngine();
   requestWakeLock();
   
-  if (els.fullscreenToggle && els.fullscreenToggle.checked) {
+  fullscreenWanted = !!(els.fullscreenToggle && els.fullscreenToggle.checked);
+  if (fullscreenWanted) {
     triggerFullscreen();
   }
+  try { history.pushState({ snake: 1 }, ""); } catch (err) {}
 
   els.startScreen.classList.add("hidden");
   els.app.classList.remove("hidden");
@@ -788,7 +807,7 @@ function initSnakeCycle() {
   currentRunFood = 0;
   foods = [];
   popups.length = 0;
-  spawnFood();
+  refillAutoFoods();
   updateHUD();
 }
 
@@ -945,6 +964,7 @@ function updateSnakePhysics() {
     }
     playSound("eat");
     if (eaten.name) addPopup(`${eaten.name} 😋`, newHead.x, newHead.y);
+    refillAutoFoods(); // একটা খেলেই সাথে সাথে নতুন ফুড
   } else {
     snake.pop();
   }
