@@ -145,6 +145,8 @@ let bgmVolume = 0.85;
 const customAudioPlayer = new Audio();
 customAudioPlayer.loop = true;
 
+const SFX_BASE_GAIN = 2.2; // খাওয়ার/অন্য সাউন্ড ইফেক্টের মূল ভলিউম (আগে 1.0)
+
 function initAudioEngine() {
   if (!audioCtx) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -157,8 +159,16 @@ function initAudioEngine() {
 
     // 🔊 ২. গেম সাউন্ড এফেক্টস চ্যানেল (সম্পূর্ণ স্বাধীন ও উচ্চ ভলিউমে ফিক্সড)
     sfxGainNode = audioCtx.createGain();
-    sfxGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
-    sfxGainNode.connect(audioCtx.destination);
+    sfxGainNode.gain.setValueAtTime(SFX_BASE_GAIN, audioCtx.currentTime);
+    // কম্প্রেসর: ভলিউম বাড়ালেও আওয়াজ ফাটে না, তাই সাউন্ড আরও জোরালো শোনায়
+    const sfxCompressor = audioCtx.createDynamicsCompressor();
+    sfxCompressor.threshold.setValueAtTime(-14, audioCtx.currentTime);
+    sfxCompressor.knee.setValueAtTime(6, audioCtx.currentTime);
+    sfxCompressor.ratio.setValueAtTime(10, audioCtx.currentTime);
+    sfxCompressor.attack.setValueAtTime(0.002, audioCtx.currentTime);
+    sfxCompressor.release.setValueAtTime(0.12, audioCtx.currentTime);
+    sfxGainNode.connect(sfxCompressor);
+    sfxCompressor.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -319,36 +329,42 @@ function playSound(type) {
       osc.start(now);
       osc.stop(now + 0.045);
     } else if (type === "eat") {
-      // 🍎 খাবার খাওয়ার সাউন্ড (Volume boosted: 0.48 -> 0.88)
+      // 🍎 খাবার খাওয়ার সাউন্ড (আরও জোরালো ও একটু লম্বা, "পপ + ডিং")
       const osc1 = audioCtx.createOscillator();
       const gain1 = audioCtx.createGain();
-      
       osc1.type = "sine";
       osc1.frequency.setValueAtTime(620, now);
-      osc1.frequency.exponentialRampToValueAtTime(1250, now + 0.10);
-      
-      gain1.gain.setValueAtTime(0.88, now);
-      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
-      
+      osc1.frequency.exponentialRampToValueAtTime(1300, now + 0.14);
+      gain1.gain.setValueAtTime(1.0, now);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
       osc1.connect(gain1);
       gain1.connect(sfxGainNode || audioCtx.destination);
       osc1.start(now);
-      osc1.stop(now + 0.11);
+      osc1.stop(now + 0.21);
 
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
-
       osc2.type = "triangle";
       osc2.frequency.setValueAtTime(310, now);
-      osc2.frequency.exponentialRampToValueAtTime(625, now + 0.08);
-
-      gain2.gain.setValueAtTime(0.50, now);
-      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-
+      osc2.frequency.exponentialRampToValueAtTime(650, now + 0.12);
+      gain2.gain.setValueAtTime(0.8, now);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
       osc2.connect(gain2);
       gain2.connect(sfxGainNode || audioCtx.destination);
       osc2.start(now);
-      osc2.stop(now + 0.09);
+      osc2.stop(now + 0.17);
+
+      const osc3 = audioCtx.createOscillator();
+      const gain3 = audioCtx.createGain();
+      osc3.type = "square";
+      osc3.frequency.setValueAtTime(1560, now + 0.05);
+      gain3.gain.setValueAtTime(0.0001, now);
+      gain3.gain.setValueAtTime(0.35, now + 0.05);
+      gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      osc3.connect(gain3);
+      gain3.connect(sfxGainNode || audioCtx.destination);
+      osc3.start(now);
+      osc3.stop(now + 0.17);
     } else if (type === "die") {
       // 💀 মৃত্যুর সাউন্ড
       const osc = audioCtx.createOscillator();
@@ -402,6 +418,128 @@ function applyTheme(i) {
   theme = THEMES[themeIndex];
   const root = document.documentElement.style;
   root.setProperty("--theme-bar", theme.bar); // স্কোরবোর্ড বার; পেছনের ব্যাকগ্রাউন্ড সবসময় কালো
+  buildSnakePalette();
+}
+
+
+// 🐍 সাপের রঙ: প্রতি ৪টা খাবার খেলে রঙ বদলায়; প্রতি রাউন্ডে গায়ের প্যাটার্ন বদলায়
+const FOODS_PER_COLOR = 4;
+const SNAKE_COLORS = [
+  { body: "#3f78fc", line: "#2349a8" }, // নীল
+  { body: "#ff7a1a", line: "#b04a05" }, // কমলা
+  { body: "#a24bff", line: "#661fb5" }, // বেগুনি
+  { body: "#ff4fa3", line: "#b82371" }, // গোলাপি
+  { body: "#00c2a8", line: "#007a69" }, // টিল
+  { body: "#ff3b3b", line: "#a81818" }, // লাল
+  { body: "#ffc400", line: "#a67f00" }, // সোনালি
+  { body: "#00b8ff", line: "#0073a6" }, // আকাশি
+  { body: "#7d4cff", line: "#4a24b8" }, // ইন্ডিগো
+  { body: "#ff6f91", line: "#b83a5c" }  // পিচ-গোলাপ
+];
+let snakePalette = SNAKE_COLORS.slice();
+let roundsPlayed = 0;
+let patternIndex = 0;
+let snakeColorNow = null; // মসৃণভাবে রঙ বদলানোর জন্য বর্তমান রঙ
+
+function hexToRgb(h) {
+  const n = parseInt(h.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function colorDistance(a, b) {
+  const x = hexToRgb(a), y = hexToRgb(b);
+  return Math.hypot(x.r - y.r, x.g - y.g, x.b - y.b);
+}
+
+// থিমের ঘাসের রঙের সাথে মিলে যায় এমন রঙ বাদ (যাতে সাপ সবসময় স্পষ্ট দেখা যায়)
+function buildSnakePalette() {
+  const good = SNAKE_COLORS.filter(c => colorDistance(c.body, theme.g1) > 120 && colorDistance(c.body, theme.g2) > 120);
+  snakePalette = good.length >= 4 ? good : SNAKE_COLORS.slice();
+}
+
+function currentSnakeTarget() {
+  const idx = Math.floor(currentRunFood / FOODS_PER_COLOR) + roundsPlayed;
+  return snakePalette[idx % snakePalette.length];
+}
+
+function advanceRound() {
+  roundsPlayed++;
+  patternIndex = (patternIndex + 1) % SNAKE_PATTERNS.length;
+}
+
+// প্রতি ফ্রেমে লক্ষ্য রঙের দিকে একটু একটু এগোয়, তাই রঙ ঝট করে না বদলে মসৃণভাবে বদলায়
+function updateSnakeColor() {
+  const t = currentSnakeTarget();
+  const tb = hexToRgb(t.body), tl = hexToRgb(t.line);
+  if (!snakeColorNow) snakeColorNow = { b: { ...tb }, l: { ...tl } };
+  const k = 0.16;
+  for (const c of ["r", "g", "b"]) {
+    snakeColorNow.b[c] += (tb[c] - snakeColorNow.b[c]) * k;
+    snakeColorNow.l[c] += (tl[c] - snakeColorNow.l[c]) * k;
+  }
+  const B = snakeColorNow.b, L = snakeColorNow.l;
+  const lum = (0.299 * B.r + 0.587 * B.g + 0.114 * B.b) / 255;
+  return {
+    body: `rgb(${B.r | 0},${B.g | 0},${B.b | 0})`,
+    line: `rgb(${L.r | 0},${L.g | 0},${L.b | 0})`,
+    mark: lum > 0.62 ? "rgba(0,0,0,0.42)" : "rgba(255,255,255,0.68)"
+  };
+}
+
+// 🎨 গায়ের প্যাটার্ন: r = সাপের শরীরের অর্ধেক প্রস্থ, (dx,dy) = মাথার দিকের দিক
+const SNAKE_PATTERNS = [
+  { name: "Dots", step: 1, draw(c, x, y, r) { c.beginPath(); c.arc(x, y, r * 0.38, 0, Math.PI * 2); c.fill(); } },
+  { name: "Plus", step: 2, draw(c, x, y, r) {
+      c.lineWidth = r * 0.3; c.beginPath();
+      c.moveTo(x - r * 0.6, y); c.lineTo(x + r * 0.6, y);
+      c.moveTo(x, y - r * 0.6); c.lineTo(x, y + r * 0.6); c.stroke(); } },
+  { name: "Minus", step: 1, draw(c, x, y, r, dx, dy) {
+      c.lineWidth = r * 0.34; c.beginPath();
+      c.moveTo(x - dx * r * 0.6, y - dy * r * 0.6); c.lineTo(x + dx * r * 0.6, y + dy * r * 0.6); c.stroke(); } },
+  { name: "Diamonds", step: 2, draw(c, x, y, r) {
+      c.beginPath(); c.moveTo(x, y - r * 0.6); c.lineTo(x + r * 0.5, y); c.lineTo(x, y + r * 0.6); c.lineTo(x - r * 0.5, y);
+      c.closePath(); c.fill(); } },
+  { name: "Stripes", step: 2, draw(c, x, y, r, dx, dy) {
+      const px = -dy, py = dx; c.lineWidth = r * 0.4; c.beginPath();
+      c.moveTo(x - px * r * 0.72, y - py * r * 0.72); c.lineTo(x + px * r * 0.72, y + py * r * 0.72); c.stroke(); } },
+  { name: "Stars", step: 2, draw(c, x, y, r) {
+      const o = r * 0.62, n = r * 0.2; c.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const ang = (Math.PI / 4) * k - Math.PI / 2, rad = k % 2 === 0 ? o : n;
+        const px = x + Math.cos(ang) * rad, py = y + Math.sin(ang) * rad;
+        if (k === 0) c.moveTo(px, py); else c.lineTo(px, py);
+      }
+      c.closePath(); c.fill(); } },
+  { name: "Rings", step: 2, draw(c, x, y, r) { c.lineWidth = r * 0.22; c.beginPath(); c.arc(x, y, r * 0.45, 0, Math.PI * 2); c.stroke(); } },
+  { name: "Chevrons", step: 2, draw(c, x, y, r, dx, dy) {
+      const px = -dy, py = dx; c.lineWidth = r * 0.28; c.beginPath();
+      c.moveTo(x - dx * r * 0.35 + px * r * 0.6, y - dy * r * 0.35 + py * r * 0.6);
+      c.lineTo(x + dx * r * 0.35, y + dy * r * 0.35);
+      c.lineTo(x - dx * r * 0.35 - px * r * 0.6, y - dy * r * 0.35 - py * r * 0.6); c.stroke(); } },
+  { name: "Squares", step: 2, draw(c, x, y, r) { c.fillRect(x - r * 0.35, y - r * 0.35, r * 0.7, r * 0.7); } }
+];
+
+function drawSnakePattern(col) {
+  if (snake.length < 3) return;
+  const pat = SNAKE_PATTERNS[patternIndex % SNAKE_PATTERNS.length];
+  ctx.save();
+  ctx.fillStyle = col.mark;
+  ctx.strokeStyle = col.mark;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (let i = 1; i < snake.length; i++) {
+    if (i % pat.step !== 0) continue;
+    const tailProgress = i / snake.length;
+    const taper = Math.max(0.32, 1 - Math.pow(tailProgress, 1.4) * 0.68);
+    const r = cellSize * 0.76 * taper * 0.5;
+    if (r < 5) continue;
+    const x = offsetX + snake[i].x * cellSize + cellSize / 2;
+    const y = offsetY + snake[i].y * cellSize + cellSize / 2;
+    const dx = snake[i - 1].x - snake[i].x;
+    const dy = snake[i - 1].y - snake[i].y;
+    pat.draw(ctx, x, y, r * 1.25, dx, dy); // একটু বড় করে আঁকা, যাতে লাইভে স্পষ্ট দেখায়
+  }
+  ctx.restore();
 }
 
 // 💬 YouTube Live Chat — সরাসরি YouTube Data API (ফ্রি কোটা; ফোন/ট্যাবে সার্ভার ছাড়াই চলে)
@@ -661,14 +799,34 @@ function initMascotImage() {
 }
 
 function duckMusic(on) {
-  const factor = on ? 0.3 : 1;
+  const factor = on ? 0.08 : 1;   // ভয়েসের সময় মিউজিক প্রায় নিঃশব্দ, ফলে ভয়েস অনেক স্পষ্ট ও জোরালো
   try {
     if (bgmGainNode && audioCtx) {
       bgmGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-      bgmGainNode.gain.setTargetAtTime(bgmVolume * factor, audioCtx.currentTime, 0.15);
+      bgmGainNode.gain.setTargetAtTime(bgmVolume * factor, audioCtx.currentTime, 0.1);
+    }
+    if (sfxGainNode && audioCtx) {
+      sfxGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+      sfxGainNode.gain.setTargetAtTime(SFX_BASE_GAIN * (on ? 0.25 : 1), audioCtx.currentTime, 0.1);
     }
   } catch (e) {}
   try { customAudioPlayer.volume = bgmVolume * factor; } catch (e) {}
+}
+
+// নিজের রেকর্ড করা mp3 ভয়েসকে ~২ গুণ জোরালো করা (ব্রাউজারের TTS ভয়েস ইতিমধ্যে সর্বোচ্চ ভলিউমে)
+let voiceBoostGain = null;
+function boostVoiceElement(a) {
+  try {
+    if (!audioCtx) return;
+    if (!voiceBoostGain) {
+      voiceBoostGain = audioCtx.createGain();
+      voiceBoostGain.gain.value = 2.2;
+      const comp = audioCtx.createDynamicsCompressor();
+      voiceBoostGain.connect(comp);
+      comp.connect(audioCtx.destination);
+    }
+    audioCtx.createMediaElementSource(a).connect(voiceBoostGain);
+  } catch (e) {}
 }
 
 function pickFemaleVoice() {
@@ -721,6 +879,7 @@ function playVoiceLine(kind, onDone) {
 
   try {
     const a = new Audio(line.file);
+    boostVoiceElement(a);
     voiceAudio = a;
     a.onended = finish;
     a.onerror = fallback; // ফাইল না থাকলে ব্রাউজারের ভয়েস
@@ -780,6 +939,7 @@ function handleVictory() {
     if (els.victoryOverlay) els.victoryOverlay.classList.add("hidden");
     if (isPlaying) {
       applyTheme(themeIndex + 1);
+      advanceRound();
       initSnakeCycle();
     }
     isVictory = false;
@@ -889,6 +1049,9 @@ function beginBattle() {
   isRespawning = false;
   isVictory = false;
   boardsCompleted = 0;
+  roundsPlayed = 0;
+  patternIndex = 0;
+  snakeColorNow = null;
   roundVoters.clear();
   updateVoterCount();
   applyTheme(0);
@@ -1065,6 +1228,7 @@ function handleSnakeDeath() {
   setTimeout(() => {
     if (els.gameOverOverlay) els.gameOverOverlay.classList.add("hidden");
     if (isPlaying) {
+      advanceRound();
       initSnakeCycle();
       isRespawning = false;
     }
@@ -1076,10 +1240,7 @@ function updateSnakePhysics() {
 
   const nextDir = getNextAIMove();
 
-  if (nextDir.x !== direction.x || nextDir.y !== direction.y) {
-    playSound("turn");
-  }
-  direction = nextDir;
+  direction = nextDir; // (মোড় ঘোরার সাউন্ড বন্ধ করা হয়েছে)
 
   const newHead = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
@@ -1186,7 +1347,8 @@ function gameLoop(time) {
     ctx.fillText(f.emoji, fx, fy);
   }
 
-  // ৩. ব্লু রিবন স্নেক বডি
+  // ৩. রিবন স্নেক বডি (রঙ প্রতি ৪ খাবারে বদলায়)
+  const snakeCol = updateSnakeColor();
   if (snake.length > 1) {
     for (let i = snake.length - 2; i >= 0; i--) {
       const p1 = { x: offsetX + snake[i].x * cellSize + cellSize / 2, y: offsetY + snake[i].y * cellSize + cellSize / 2 };
@@ -1197,7 +1359,7 @@ function gameLoop(time) {
       const strokeW = cellSize * 0.76 * taperFactor;
 
       ctx.beginPath();
-      ctx.strokeStyle = theme.outline;
+      ctx.strokeStyle = snakeCol.line;
       ctx.lineWidth = strokeW + 4;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -1215,7 +1377,7 @@ function gameLoop(time) {
       const strokeW = cellSize * 0.76 * taperFactor;
 
       ctx.beginPath();
-      ctx.strokeStyle = theme.snake;
+      ctx.strokeStyle = snakeCol.body;
       ctx.lineWidth = strokeW;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -1224,6 +1386,8 @@ function gameLoop(time) {
       ctx.stroke();
     }
   }
+
+  drawSnakePattern(snakeCol);
 
   // ৪. স্নেক হেড
   const head = snake[0];
@@ -1270,7 +1434,7 @@ function gameLoop(time) {
     ctx.restore();
   }
 
-  ctx.fillStyle = theme.snake;
+  ctx.fillStyle = snakeCol.body;
   ctx.beginPath();
   ctx.arc(hx, hy, cellSize * 0.44, 0, Math.PI * 2);
   ctx.fill();
