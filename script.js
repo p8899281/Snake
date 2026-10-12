@@ -170,10 +170,33 @@ function initAudioEngine() {
     sfxGainNode.connect(sfxCompressor);
     sfxCompressor.connect(audioCtx.destination);
   }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+  // iOS Safari: silent-switch ছাড়াও সাউন্ড বাজানোর জন্য + অডিও আনলক
+  try {
+    const b = audioCtx.createBuffer(1, 1, 22050);
+    const src = audioCtx.createBufferSource();
+    src.buffer = b;
+    src.connect(audioCtx.destination);
+    src.start(0);
+  } catch (e) {}
+  ensureAudioRunning();
+}
+
+// 🔓 অডিও যেন সবসময় "running" থাকে (suspended / interrupted দুটোই ঠিক করে)
+function ensureAudioRunning() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  if (audioCtx && audioCtx.state !== 'running') {
+    try {
+      const p = audioCtx.resume();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
   }
 }
+["pointerdown", "touchend", "click", "keydown"].forEach(ev => {
+  document.addEventListener(ev, () => { if (audioCtx && isPlaying) ensureAudioRunning(); }, { passive: true });
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && audioCtx && isPlaying) ensureAudioRunning();
+});
 
 function handleBgmSelectChange() {
   const selected = els.bgmSelect ? els.bgmSelect.value : 'google_original';
@@ -256,6 +279,7 @@ function startBGM() {
     
     bgmInterval = setInterval(() => {
       if (!audioCtx || !isPlaying || isRespawning) return;
+      if (audioCtx.state !== 'running') { ensureAudioRunning(); return; }
       try {
         const now = audioCtx.currentTime;
 
@@ -305,9 +329,7 @@ function stopBGM() {
 // 🔊 গেমের সাউন্ড এফেক্টস (সাপ ঘোরা ও খাওয়ার শব্দ দ্বিগুণ লাউড ও স্বাধীন)
 function playSound(type) {
   if (!audioCtx || !isPlaying) return;
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
-  }
+  ensureAudioRunning();
   
   try {
     const now = audioCtx.currentTime;
@@ -836,9 +858,22 @@ function pickFemaleVoice() {
   return en.find(v => /female/i.test(v.name)) || en.find(v => femaleRe.test(v.name)) || en[0] || null;
 }
 
+let lastUtterance = null; // ব্রাউজার যেন utterance মুছে না ফেলে (garbage-collect bug)
+
+// 🔓 Safari/Firefox/Edge: প্রথমবার ভয়েস চালাতে ইউজারের ক্লিকের ভেতরেই speak() ডাকতে হয়। START চাপার সময় নিঃশব্দ ভয়েস দিয়ে আনলক করা হচ্ছে।
+function unlockSpeech() {
+  if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return;
+  try {
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
 function speakText(text, done) {
   if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") { if (done) done(); return; }
   try {
+    const synth = window.speechSynthesis;
     const u = new SpeechSynthesisUtterance(text);
     const v = pickFemaleVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = "en-US"; }
@@ -847,8 +882,21 @@ function speakText(text, done) {
     u.volume = 1;
     u.onend = () => { if (done) done(); };
     u.onerror = () => { if (done) done(); };
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    lastUtterance = u;
+
+    const go = () => {
+      try {
+        if (synth.paused) synth.resume();
+        synth.speak(u);
+      } catch (e) { if (done) done(); }
+    };
+    // cancel() এর সাথে সাথে speak() ডাকলে অনেক ব্রাউজারে ভয়েস হারিয়ে যায়, তাই একটু দেরি
+    if (synth.speaking || synth.pending) {
+      synth.cancel();
+      setTimeout(go, 120);
+    } else {
+      go();
+    }
   } catch (e) { if (done) done(); }
 }
 
@@ -1029,6 +1077,7 @@ function selectMode(mode) {
 
 function beginBattle() {
   initAudioEngine();
+  unlockSpeech();
   requestWakeLock();
   
   fullscreenWanted = !!(els.fullscreenToggle && els.fullscreenToggle.checked);
