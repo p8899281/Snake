@@ -139,6 +139,8 @@ buildHamiltonianCycle();
 // 🔊 অডিও ইঞ্জিনের আলাদা অডিও চ্যানেল (BGM Gain & SFX Gain Separated)
 let audioCtx = null;
 let bgmGainNode = null;
+let bgmCompressor = null;
+const BGM_BOOST = 7; // ব্যাকগ্রাউন্ড মিউজিকের নোটগুলোর জোর (আগে খুব আস্তে ছিল, প্রায় শোনাই যেত না)
 let sfxGainNode = null;
 let bgmVolume = 0.85;
 
@@ -151,11 +153,20 @@ function initAudioEngine() {
   if (!audioCtx) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
+    audioCtx.onstatechange = () => checkAudioHint();
     
     // 🎵 ১. ব্যাকগ্রাউন্ড মিউজিক চ্যানেল (ভলিউম স্লাইডার দ্বারা নিয়ন্ত্রিত)
     bgmGainNode = audioCtx.createGain();
     bgmGainNode.gain.setValueAtTime(bgmVolume, audioCtx.currentTime);
-    bgmGainNode.connect(audioCtx.destination);
+    // কম্প্রেসর: জোরে করলেও আওয়াজ ফাটবে না
+    bgmCompressor = audioCtx.createDynamicsCompressor();
+    bgmCompressor.threshold.setValueAtTime(-12, audioCtx.currentTime);
+    bgmCompressor.knee.setValueAtTime(10, audioCtx.currentTime);
+    bgmCompressor.ratio.setValueAtTime(8, audioCtx.currentTime);
+    bgmCompressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
+    bgmCompressor.release.setValueAtTime(0.15, audioCtx.currentTime);
+    bgmGainNode.connect(bgmCompressor);
+    bgmCompressor.connect(audioCtx.destination);
 
     // 🔊 ২. গেম সাউন্ড এফেক্টস চ্যানেল (সম্পূর্ণ স্বাধীন ও উচ্চ ভলিউমে ফিক্সড)
     sfxGainNode = audioCtx.createGain();
@@ -191,11 +202,43 @@ function ensureAudioRunning() {
     } catch (e) {}
   }
 }
-["pointerdown", "touchend", "click", "keydown"].forEach(ev => {
-  document.addEventListener(ev, () => { if (audioCtx && isPlaying) ensureAudioRunning(); }, { passive: true });
+// 🔔 Autoplay policy: ক্লিক/ট্যাপ ছাড়া ব্রাউজার অডিও আটকে রাখে। তখন "TAP TO ENABLE SOUND" বাটন দেখাবে, আর প্রথম ট্যাপেই অডিও চালু হবে।
+let speechUnlockedByTap = false;
+
+function showSoundHint(show) {
+  let el = document.getElementById("soundHint");
+  if (!show) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement("button");
+  el.id = "soundHint";
+  el.type = "button";
+  el.textContent = "🔊 TAP TO ENABLE SOUND";
+  el.style.cssText = "position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;" +
+    "background:#3f78fc;color:#fff;border:none;border-radius:999px;padding:12px 22px;font-size:14px;" +
+    "font-weight:900;letter-spacing:1px;box-shadow:0 6px 22px rgba(0,0,0,.6);cursor:pointer;";
+  el.addEventListener("click", () => { ensureAudioRunning(); unlockSpeech(); });
+  document.body.appendChild(el);
+}
+
+function checkAudioHint() {
+  if (!isPlaying || !audioCtx) { showSoundHint(false); return; }
+  showSoundHint(audioCtx.state !== "running");
+}
+
+// প্রথম ইউজার জেসচার (ক্লিক/ট্যাপ/কী) এলেই অডিও + ভয়েস আনলক
+["pointerdown", "pointerup", "mousedown", "touchend", "click", "keydown"].forEach(ev => {
+  document.addEventListener(ev, () => {
+    if (!audioCtx || !isPlaying) return;
+    ensureAudioRunning();
+    if (!speechUnlockedByTap) { speechUnlockedByTap = true; unlockSpeech(); }
+    setTimeout(checkAudioHint, 300);
+  }, { passive: true });
 });
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && audioCtx && isPlaying) ensureAudioRunning();
+  if (document.visibilityState === "visible" && audioCtx && isPlaying) {
+    ensureAudioRunning();
+    setTimeout(checkAudioHint, 300);
+  }
 });
 
 function handleBgmSelectChange() {
@@ -290,7 +333,7 @@ function startBGM() {
         osc.type = track.type;
         osc.frequency.setValueAtTime(freq, now);
 
-        const vol = (track.type === "sawtooth") ? 0.03 : 0.05;
+        const vol = ((track.type === "sawtooth") ? 0.03 : 0.05) * BGM_BOOST;
         gain.gain.setValueAtTime(vol, now);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
 
@@ -306,7 +349,7 @@ function startBGM() {
 
           bassOsc.type = "sine";
           bassOsc.frequency.setValueAtTime(bFreq, now);
-          bassGain.gain.setValueAtTime(0.08, now);
+          bassGain.gain.setValueAtTime(0.08 * BGM_BOOST, now);
           bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
 
           bassOsc.connect(bassGain);
@@ -1117,6 +1160,7 @@ function beginBattle() {
   initSubscribeAnimation();
   isPlaying = true;
   startBGM();
+  setTimeout(checkAudioHint, 500);
   requestAnimationFrame(gameLoop);
 }
 
@@ -1334,6 +1378,7 @@ function endTournament() {
   stopReminderTimer();
   releaseWakeLock();
   stopBGM();
+  showSoundHint(false);
   showRoundOutro();
   if (els.podium1Name) els.podium1Name.innerText = `${maxFoodSingleRun} Foods Collected`;
   if (els.winnerOverlay) els.winnerOverlay.classList.remove("hidden");
