@@ -382,33 +382,160 @@ function retryBgm() {
   }
 }
 
-function startBGM() {
-  stopBGM();
-  const selectedType = els.bgmSelect ? els.bgmSelect.value : 'google_original';
-  let url = "";
+// 🔗 লিংক ঠিক করে নেওয়া: GitHub (raw/blob), Dropbox — যেন সরাসরি অডিও ফাইলই পাওয়া যায়
+function normalizeMusicUrl(input) {
+  let u = (input || "").trim().replace(/^["'<]+|["'>]+$/g, "");
+  if (!u) return "";
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = "https://" + u;
+  try {
+    const url = new URL(u);
+    if (url.hostname === "github.com" || url.hostname === "www.github.com") {
+      // github.com/user/repo/raw/...  বা  /blob/...  →  raw.githubusercontent.com/user/repo/...  (রিডাইরেক্ট ছাড়া সরাসরি)
+      const m = url.pathname.match(/^\/([^/]+)\/([^/]+)\/(?:raw|blob)\/(.+)$/);
+      if (m) return "https://raw.githubusercontent.com/" + m[1] + "/" + m[2] + "/" + m[3];
+    }
+    if (/(^|\.)dropbox\.com$/.test(url.hostname)) {
+      url.searchParams.delete("dl");
+      url.searchParams.set("raw", "1");
+      return url.toString();
+    }
+    if (location.protocol === "https:" && url.protocol === "http:") url.protocol = "https:"; // mixed-content এড়াতে
+    return url.toString();
+  } catch (e) { return u; }
+}
 
-  if (selectedType === 'custom') {
-    const input = document.getElementById("customBgmUrl");
-    url = input ? input.value.trim() : "";
-  } else {
-    try { url = renderTrackUrl(selectedType); } catch (e) { console.log("BGM render failed:", e); }
+let bgmToken = 0;          // পুরোনো অ্যাসিঙ্ক কলব্যাক বাতিল করতে
+let bgmWatchdog = null;
+let bgmPlayingHandler = null;
+let musicToastTimer = null;
+const CUSTOM_MUSIC_TIMEOUT_MS = 15000;
+
+function showMusicToast(text, ms) {
+  let el = document.getElementById("musicToast");
+  if (!text) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "musicToast";
+    el.style.cssText = "position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:9998;max-width:92vw;" +
+      "background:rgba(0,0,0,.82);color:#fff;border:1.5px solid #87c34b;border-radius:12px;padding:9px 14px;" +
+      "font-size:12px;font-weight:800;text-align:center;box-shadow:0 6px 22px rgba(0,0,0,.6);pointer-events:none;";
+    document.body.appendChild(el);
   }
-  if (!url) return;
+  el.textContent = text;
+  if (musicToastTimer) { clearTimeout(musicToastTimer); musicToastTimer = null; }
+  if (ms > 0) musicToastTimer = setTimeout(() => showMusicToast("", 0), ms);
+}
 
+function playBuiltinTrack(key) {
+  let url = "";
+  try { url = renderTrackUrl(key); } catch (e) { console.log("BGM render failed:", e); }
+  if (!url) return;
   bgmWanted = true;
+  customAudioPlayer.onerror = null;
   customAudioPlayer.loop = true;
   customAudioPlayer.preload = "auto";
   customAudioPlayer.src = url;
   customAudioPlayer.volume = bgmVolume;
   try {
     const p = customAudioPlayer.play();
-    if (p && p.catch) p.catch(() => { setTimeout(checkAudioHint, 150); }); // ব্লক হলে "TAP TO ENABLE SOUND" দেখাবে
+    if (p && p.catch) p.catch(() => { setTimeout(checkAudioHint, 150); });
   } catch (e) {}
 }
 
+function failCustomMusic(token, reason) {
+  if (token !== bgmToken) return;
+  bgmToken++;                                   // পুরোনো কলব্যাকগুলো আর কাজ করবে না
+  if (bgmWatchdog) { clearTimeout(bgmWatchdog); bgmWatchdog = null; }
+  if (bgmPlayingHandler) { customAudioPlayer.removeEventListener("playing", bgmPlayingHandler); bgmPlayingHandler = null; }
+  console.log("Custom music failed:", reason);
+  showMusicToast("⚠️ Custom music failed (" + reason + "). Playing default music instead.", 8000);
+  playBuiltinTrack("google_original");
+}
+
+// ফাইল ডাউনলোড করে blob হিসেবে বাজানো (ব্রাউজারের সরাসরি লোড আটকে গেলে এটা কাজ করে)
+function playCustomViaBlob(url, token) {
+  fetch(url, { mode: "cors" })
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+    .then(buf => {
+      if (token !== bgmToken) return;
+      const ext = (url.split("?")[0].match(/\.([a-z0-9]+)$/i) || [])[1] || "mp3";
+      const types = { mp3: "audio/mpeg", ogg: "audio/ogg", oga: "audio/ogg", wav: "audio/wav", m4a: "audio/mp4", aac: "audio/aac", opus: "audio/ogg" };
+      const blobUrl = URL.createObjectURL(new Blob([buf], { type: types[ext.toLowerCase()] || "audio/mpeg" }));
+      customAudioPlayer.onerror = () => failCustomMusic(token, "unsupported audio format");
+      customAudioPlayer.src = blobUrl;
+      customAudioPlayer.volume = bgmVolume;
+      const p = customAudioPlayer.play();
+      if (p && p.catch) p.catch(() => { setTimeout(checkAudioHint, 150); });
+    })
+    .catch(err => {
+      const msg = (err && err.message) ? err.message : "";
+      failCustomMusic(token, (!msg || /failed to fetch|networkerror|load failed/i.test(msg)) ? "link not found or blocked" : msg);
+    });
+}
+
+function startCustomBGM(url, token) {
+  bgmWanted = true;
+  showMusicToast("⏳ Loading custom music…", 0);
+
+  customAudioPlayer.onerror = () => {
+    if (token !== bgmToken) return;
+    customAudioPlayer.onerror = null;
+    playCustomViaBlob(url, token);         // সরাসরি লোড ব্যর্থ → ডাউনলোড করে চালানোর চেষ্টা
+  };
+  const onPlaying = () => {
+    customAudioPlayer.removeEventListener("playing", onPlaying);
+    if (bgmPlayingHandler === onPlaying) bgmPlayingHandler = null;
+    if (token !== bgmToken) return;
+    if (bgmWatchdog) { clearTimeout(bgmWatchdog); bgmWatchdog = null; }
+    showMusicToast("🎵 Custom music playing", 2500);
+  };
+  if (bgmPlayingHandler) customAudioPlayer.removeEventListener("playing", bgmPlayingHandler);
+  bgmPlayingHandler = onPlaying;
+  customAudioPlayer.addEventListener("playing", onPlaying);
+
+  customAudioPlayer.loop = true;
+  customAudioPlayer.preload = "auto";
+  customAudioPlayer.src = url;
+  customAudioPlayer.volume = bgmVolume;
+  try {
+    const p = customAudioPlayer.play();
+    if (p && p.catch) p.catch(() => { setTimeout(checkAudioHint, 150); });  // autoplay ব্লক হলে "TAP TO ENABLE SOUND"
+  } catch (e) {}
+
+  // অনেকক্ষণেও কিছু লোড না হলে (ব্লক/ধীর নেটওয়ার্ক) ডিফল্ট মিউজিকে ফিরে যাবে
+  bgmWatchdog = setTimeout(() => {
+    if (token !== bgmToken) return;
+    if (customAudioPlayer.readyState < 3) failCustomMusic(token, "no response from the link");
+  }, CUSTOM_MUSIC_TIMEOUT_MS);
+}
+
+function startBGM() {
+  stopBGM();
+  const token = ++bgmToken;
+  const selectedType = els.bgmSelect ? els.bgmSelect.value : 'google_original';
+
+  if (selectedType === 'custom') {
+    const input = document.getElementById("customBgmUrl");
+    const url = normalizeMusicUrl(input ? input.value : "");
+    if (!url) {
+      showMusicToast("⚠️ No MP3 link pasted. Playing default music.", 5000);
+      playBuiltinTrack("google_original");
+      return;
+    }
+    startCustomBGM(url, token);
+  } else {
+    playBuiltinTrack(selectedType);
+  }
+}
+
 function stopBGM() {
+  bgmToken++;
   bgmWanted = false;
+  if (bgmWatchdog) { clearTimeout(bgmWatchdog); bgmWatchdog = null; }
+  try { customAudioPlayer.onerror = null; } catch (e) {}
+  if (bgmPlayingHandler) { customAudioPlayer.removeEventListener("playing", bgmPlayingHandler); bgmPlayingHandler = null; }
   try { customAudioPlayer.pause(); } catch (e) {}
+  showMusicToast("", 0);
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
