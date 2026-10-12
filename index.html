@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Google AI Snake Pro</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Mode Selection Screen -->
+  <div id="mode-selector" class="overlay-screen">
+    <div class="mode-box">
+      <h2>SELECT DEVICE MODE</h2>
+      <div class="mode-btns">
+        <button onclick="selectMode('mobile')">📱 MOBILE (9:16)</button>
+        <button onclick="selectMode('tablet')">📟 TABLET (16:9)</button>
+        <button onclick="selectMode('pc')">💻 PC (AUTO)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Screen with Minutes & Sound -->
+  <div id="start-screen" class="overlay-screen hidden">
+    <div class="start-box">
+      <div class="start-flags-row">🐍 🍎 🏆 🌶️ 🌟</div>
+      <h1 class="start-title">GOOGLE AI SNAKE</h1>
+      <div class="start-underline"></div>
+      
+      <!-- ⏱️ সময় সিলেক্টর -->
+      <div class="rounds-selector-box">
+        <div class="rounds-label">SELECT RUN DURATION:</div>
+        <div class="rounds-btn-group">
+          <button type="button" class="round-btn active" onclick="setSimulationMinutes(0, this)">∞ LIVE</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(1, this)">1 MIN</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(3, this)">3 MIN</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(15, this)">15 MIN</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(30, this)">30 MIN</button>
+          <button type="button" class="round-btn" onclick="setSimulationMinutes(60, this)">60 MIN</button>
+        </div>
+      </div>
+
+      <!-- 💬 YouTube Live Chat -->
+      <div class="music-settings-box">
+        <div class="music-label">💬 YOUTUBE LIVE CHAT (free):</div>
+        <input type="text" id="chatUrl" class="custom-music-input" placeholder="Live URL or video ID..." autocomplete="off" />
+        <input type="password" id="chatKey" class="custom-music-input" placeholder="YouTube Data API key..." autocomplete="off" />
+        <select id="chatInterval" class="bgm-dropdown">
+          <option value="6000">Fast: check chat every 6s (~3 hrs/day free)</option>
+          <option value="10000" selected>Balanced: every 10s (~5 hrs/day free)</option>
+          <option value="20000">Saver: every 20s (~11 hrs/day free)</option>
+        </select>
+        <div class="chat-test-row">
+          <button type="button" class="round-btn" onclick="testChatConnection()">🔌 TEST</button>
+          <span id="chatStartStatus" class="chat-start-status">Leave empty to play with auto food only</span>
+        </div>
+      </div>
+
+      <!-- 🎵 সাউন্ড ও মিউজিক সেটিংস -->
+      <div class="music-settings-box">
+        <div class="music-label">🎶 BACKGROUND MUSIC VOLUME:</div>
+        <select id="bgmSelect" class="bgm-dropdown" onchange="handleBgmSelectChange()">
+          <option value="google_original">🍏 Original Google Snake Theme (Play Games)</option>
+          <option value="google">🕹️ Google Arcade Pop</option>
+          <option value="cyber">⚡ Cyber Glow Beat</option>
+          <option value="synth">🎵 Procedural Synth Beat</option>
+          <option value="custom">🔗 Custom MP3 Link</option>
+        </select>
+
+        <div id="customMusicInputWrapper" class="custom-music-wrapper hidden">
+          <input type="text" id="customBgmUrl" class="custom-music-input" placeholder="Paste direct .mp3 link..." />
+        </div>
+
+        <div class="volume-slider-row">
+          <span class="vol-icon">🔊 MUSIC VOL:</span>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.85" oninput="changeVolume(this.value)" />
+          <span id="volumeValueText" class="vol-percent">85%</span>
+        </div>
+      </div>
+
+      <!-- 🖥️ ফুলস্ক্রিন চেকবক্স -->
+      <label class="fullscreen-option">
+        <input type="checkbox" id="fullscreenToggle" checked />
+        <span>🖥️ Launch in Fullscreen Mode</span>
+      </label>
+
+      <label class="fullscreen-option">
+        <input type="checkbox" id="voiceToggle" checked />
+        <span>🗣️ Girl voice reminders (like / subscribe)</span>
+      </label>
+
+      <button class="start-battle-btn" onclick="beginBattle()">
+        <span class="play-icon">▶</span> START AI SNAKE
+      </button>
+
+      <div class="start-footer-text">LONG SURVIVAL AI · REALISTIC PATTERNS</div>
+    </div>
+  </div>
+
+  <!-- Main Game App -->
+  <div id="app" class="hidden">
+    <!-- 💬 Top banner: chat call-to-action (sits in the empty space above the scoreboard) -->
+    <div class="chat-banner">
+      <span class="chat-dot" id="chatDot" data-state="idle" title="Chat not connected"></span>
+      <div class="cb-text">
+        <span class="cb-type">Type</span>
+        <span class="cb-one">1</span>
+        <span class="cb-rest">in chat to drop food<br>with your name</span>
+      </div>
+      <span class="chat-voters" title="Entered this round (tap to test)">🎯 <span id="voterCount">0</span></span>
+    </div>
+
+    <!-- 🎀 Mascot: appears after every round and asks viewers to like & subscribe -->
+    <div id="mascotPanel" class="mascot-panel hidden">
+      <div class="mascot-avatar">
+        <img id="mascotImg" class="hidden" alt="" />
+        <svg id="mascotSvg" class="mascot-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="mbg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ff9ac8"/><stop offset="1" stop-color="#7b5cff"/>
+            </linearGradient>
+            <clipPath id="mclip"><circle cx="100" cy="100" r="100"/></clipPath>
+          </defs>
+          <g clip-path="url(#mclip)">
+            <rect width="200" height="200" fill="url(#mbg)"/>
+            <path d="M40 120 C28 42 70 12 100 12 C130 12 172 42 160 120 C158 150 150 170 140 180 L60 180 C50 170 42 150 40 120Z" fill="#2b1b3d"/>
+            <rect x="86" y="140" width="28" height="26" rx="8" fill="#ffd2bd"/>
+            <path d="M14 205 C18 165 56 150 100 150 C144 150 182 165 186 205Z" fill="#ff4d6d"/>
+            <path d="M84 152 Q100 166 116 152" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+            <path d="M92 160 V184 M108 160 V184" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="100" cy="100" rx="46" ry="50" fill="#ffe0cc"/>
+            <path d="M52 96 C54 54 86 40 100 40 C116 40 146 54 148 96 C132 80 116 72 100 68 C84 72 68 80 52 96Z" fill="#2b1b3d"/>
+            <path d="M54 98 C54 36 146 36 146 98" fill="none" stroke="#ff2d55" stroke-width="7" stroke-linecap="round"/>
+            <circle cx="52" cy="106" r="15" fill="#ff2d55"/><circle cx="52" cy="106" r="8" fill="#b4123a"/>
+            <circle cx="148" cy="106" r="15" fill="#ff2d55"/><circle cx="148" cy="106" r="8" fill="#b4123a"/>
+            <path d="M70 92 Q81 85 92 90 M108 90 Q119 85 130 92" fill="none" stroke="#2b1b3d" stroke-width="3.5" stroke-linecap="round"/>
+            <ellipse cx="82" cy="108" rx="9" ry="12" fill="#2b1b3d"/>
+            <ellipse cx="118" cy="108" rx="9" ry="12" fill="#2b1b3d"/>
+            <circle cx="85" cy="103" r="3.8" fill="#ffffff"/><circle cx="121" cy="103" r="3.8" fill="#ffffff"/>
+            <circle cx="79" cy="112" r="2" fill="#ffffff"/><circle cx="115" cy="112" r="2" fill="#ffffff"/>
+            <ellipse cx="68" cy="124" rx="9" ry="5" fill="#ff8fa3" opacity="0.6"/>
+            <ellipse cx="132" cy="124" rx="9" ry="5" fill="#ff8fa3" opacity="0.6"/>
+            <path d="M99 118 q-2 4 2 4" fill="none" stroke="#e0a08a" stroke-width="2" stroke-linecap="round"/>
+            <g class="mouth">
+              <path d="M87 129 Q100 148 113 129 Z" fill="#b4123a" stroke="#b4123a" stroke-width="2" stroke-linejoin="round"/>
+              <ellipse cx="100" cy="137" rx="6" ry="3" fill="#ff8fa3"/>
+            </g>
+            <path d="M170 34 l4 10 l10 4 l-10 4 l-4 10 l-4 -10 l-10 -4 l10 -4z" fill="#fff6a8"/>
+          </g>
+        </svg>
+      </div>
+      <div class="mascot-bubble">
+        Please <b class="mb-red">subscribe</b> to the channel<br>and <b class="mb-yellow">like</b> the stream! 👍🔔
+      </div>
+    </div>
+
+    <div class="game-content-layout">
+      <!-- 🟩 Playground Wrapper -->
+      <div class="playground-wrapper">
+        <header class="google-top-bar">
+          <!-- 🍎 Food Counter -->
+          <div class="google-bar-item">
+            <span class="bar-icon">🍎</span>
+            <span class="bar-val" id="topFoodCount">0</span>
+          </div>
+
+          <!-- 🔴 মাঝের লাল SUBSCRIBE বাটন ও অ্যানিমেটেড মাউস কার্সর -->
+          <div class="hud-subscribe-container" id="hudSubContainer">
+            <div class="hud-subscribe-btn" id="hudSubBtn">
+              <span class="yt-icon">▶</span>
+              <span class="sub-text" id="hudSubText">SUBSCRIBE</span>
+              <span class="bell-icon" id="hudBellIcon">🔔</span>
+            </div>
+            <div class="animated-mouse-cursor" id="hudCursor">👆</div>
+          </div>
+
+          <!-- 🏆 High Score Counter -->
+          <div class="google-bar-item">
+            <span class="bar-icon">🏆</span>
+            <span class="bar-val" id="topBestCount">0</span>
+          </div>
+        </header>
+
+        <!-- এরিনা ক্যানভাস ও ওভারলে -->
+        <div class="arena-container">
+          <canvas id="arena"></canvas>
+          
+          <!-- 💀 মৃত্যুর পর ২.৫ সেকেন্ডের জন্য GAME OVER ব্যানার -->
+          <div id="gameOverOverlay" class="game-over-modal hidden">
+            <div class="go-title">GAME OVER</div>
+            <div class="go-score-text">SCORE: <span id="goScoreVal">0</span></div>
+            <div class="go-respawn-bar"><div class="go-respawn-fill"></div></div>
+          </div>
+
+          <!-- 🏁 সেশন টাইম শেষ হওয়ার ফাইনাল রিপোর্ট -->
+          <div id="winnerOverlay" class="winner-overlay hidden">
+            <div class="round-winner-text">TIME FINISHED</div>
+            <div class="winner-flag-box">👑</div>
+            <div class="podium-card gold">
+              <span class="podium-badge">🏆 SESSION HIGH SCORE 🏆</span>
+              <div class="podium-name" id="podium1Name">0 Foods</div>
+            </div>
+            <button class="start-battle-btn" style="margin-top: 14px; padding: 10px 22px; font-size: 13px;" onclick="restartTournament()">
+              🔄 PLAY AGAIN
+            </button>
+          </div>
+
+          <!-- 🏆 100% board filled -->
+          <div id="victoryOverlay" class="victory-overlay hidden">
+            <div class="victory-trophy">🏆</div>
+            <div class="victory-title">100% FILLED!</div>
+            <div class="victory-sub" id="victorySub">Board complete</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
