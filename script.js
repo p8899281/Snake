@@ -140,7 +140,6 @@ buildHamiltonianCycle();
 let audioCtx = null;
 let bgmGainNode = null;
 let bgmCompressor = null;
-const BGM_BOOST = 7; // ব্যাকগ্রাউন্ড মিউজিকের নোটগুলোর জোর (আগে খুব আস্তে ছিল, প্রায় শোনাই যেত না)
 let sfxGainNode = null;
 let bgmVolume = 0.85;
 
@@ -201,6 +200,7 @@ function ensureAudioRunning() {
       if (p && p.catch) p.catch(() => {});
     } catch (e) {}
   }
+  retryBgm();
 }
 // 🔔 Autoplay policy: ক্লিক/ট্যাপ ছাড়া ব্রাউজার অডিও আটকে রাখে। তখন "TAP TO ENABLE SOUND" বাটন দেখাবে, আর প্রথম ট্যাপেই অডিও চালু হবে।
 let speechUnlockedByTap = false;
@@ -221,21 +221,23 @@ function showSoundHint(show) {
 }
 
 function checkAudioHint() {
-  if (!isPlaying || !audioCtx) { showSoundHint(false); return; }
-  showSoundHint(audioCtx.state !== "running");
+  if (!isPlaying) { showSoundHint(false); return; }
+  const ctxBlocked = !!audioCtx && audioCtx.state !== "running";
+  const musicBlocked = bgmWanted && customAudioPlayer.paused;
+  showSoundHint(ctxBlocked || musicBlocked);
 }
 
 // প্রথম ইউজার জেসচার (ক্লিক/ট্যাপ/কী) এলেই অডিও + ভয়েস আনলক
 ["pointerdown", "pointerup", "mousedown", "touchend", "click", "keydown"].forEach(ev => {
   document.addEventListener(ev, () => {
-    if (!audioCtx || !isPlaying) return;
+    if (!isPlaying) return;
     ensureAudioRunning();
     if (!speechUnlockedByTap) { speechUnlockedByTap = true; unlockSpeech(); }
     setTimeout(checkAudioHint, 300);
   }, { passive: true });
 });
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && audioCtx && isPlaying) {
+  if (document.visibilityState === "visible" && isPlaying) {
     ensureAudioRunning();
     setTimeout(checkAudioHint, 300);
   }
@@ -305,69 +307,113 @@ const musicTracks = {
   }
 };
 
-function startBGM() {
-  stopBGM();
-  const selectedType = els.bgmSelect ? els.bgmSelect.value : 'google_original';
+// 🎵 ব্যাকগ্রাউন্ড মিউজিক: সুরটা JS দিয়ে একটা আসল WAV অডিওতে বানিয়ে সাধারণ <audio> এলিমেন্টে বাজানো হয়।
+// (Web Audio oscillator-এর চেয়ে এটা অনেক বেশি নির্ভরযোগ্য: iPhone silent switch, in-app browser, iframe — সব জায়গায় চলে)
+const bgmWavCache = {};
+let bgmWanted = false;   // মিউজিক এখন চলা উচিত কিনা
 
-  if (selectedType === 'custom') {
-    let url = document.getElementById("customBgmUrl").value.trim();
-    if (url) {
-      customAudioPlayer.src = url;
-      customAudioPlayer.volume = bgmVolume;
-      customAudioPlayer.play().catch(() => {});
+function makeWavBlob(data, sampleRate) {
+  const buf = new ArrayBuffer(44 + data.length * 2);
+  const v = new DataView(buf);
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + data.length * 2, true); w(8, "WAVE");
+  w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, data.length * 2, true);
+  for (let i = 0; i < data.length; i++) {
+    v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, data[i])) * 32767, true);
+  }
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+function renderTrackUrl(key) {
+  if (bgmWavCache[key]) return bgmWavCache[key];
+  const track = musicTracks[key] || musicTracks.google_original;
+  const SR = 22050;
+  const gcd = (x, y) => (y ? gcd(y, x % y) : x);
+  const bassPeriod = track.bass ? track.bass.length * 2 : 1;
+  const steps = (track.notes.length * bassPeriod) / gcd(track.notes.length, bassPeriod);
+  const stepSamples = Math.round(SR * track.speed / 1000);
+  const loopSamples = steps * stepSamples;
+  const reps = Math.max(1, Math.ceil((10 * SR) / loopSamples));   // ~১০ সেকেন্ডের লুপ
+  const total = loopSamples * reps;
+  const data = new Float32Array(total);
+
+  const addTone = (start, freq, type, vol, dur) => {
+    const n = Math.floor(SR * dur * 1.08);
+    const k = Math.log(0.0001 / vol) / dur;
+    const inc = freq / SR;
+    let phase = 0;
+    for (let i = 0; i < n; i++) {
+      const env = vol * Math.exp(k * Math.min(i / SR, dur));
+      let x;
+      if (type === "sine") x = Math.sin(2 * Math.PI * phase);
+      else if (type === "triangle") x = (2 / Math.PI) * Math.asin(Math.sin(2 * Math.PI * phase));
+      else x = 2 * (phase - Math.floor(phase + 0.5));        // sawtooth
+      phase += inc;
+      data[(start + i) % total] += x * env;                  // শেষের টেইল শুরুতে ঘুরে আসে → লুপে কোনো ফাঁক/ক্লিক নেই
     }
-  } else {
-    const track = musicTracks[selectedType] || musicTracks.google_original;
-    bgmStep = 0;
-    
-    bgmInterval = setInterval(() => {
-      if (!audioCtx || !isPlaying || isRespawning) return;
-      if (audioCtx.state !== 'running') { ensureAudioRunning(); return; }
-      try {
-        const now = audioCtx.currentTime;
+  };
 
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        const freq = track.notes[bgmStep % track.notes.length];
+  for (let st = 0; st < steps * reps; st++) {
+    const start = st * stepSamples;
+    addTone(start, track.notes[st % track.notes.length], track.type, track.type === "sawtooth" ? 0.03 : 0.05, 0.12);
+    if (track.bass && st % 2 === 0) {
+      addTone(start, track.bass[Math.floor(st / 2) % track.bass.length], "sine", 0.08, 0.22);
+    }
+  }
 
-        osc.type = track.type;
-        osc.frequency.setValueAtTime(freq, now);
+  let peak = 0;
+  for (let i = 0; i < total; i++) peak = Math.max(peak, Math.abs(data[i]));
+  const norm = peak > 0 ? 0.85 / peak : 1;                   // জোরালো কিন্তু ফাটবে না
+  for (let i = 0; i < total; i++) data[i] *= norm;
 
-        const vol = ((track.type === "sawtooth") ? 0.03 : 0.05) * BGM_BOOST;
-        gain.gain.setValueAtTime(vol, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+  const url = URL.createObjectURL(makeWavBlob(data, SR));
+  bgmWavCache[key] = url;
+  return url;
+}
 
-        osc.connect(gain);
-        gain.connect(bgmGainNode); // 🎶 Connected strictly to BGM Node
-        osc.start(now);
-        osc.stop(now + 0.13);
-
-        if (track.bass && bgmStep % 2 === 0) {
-          const bassOsc = audioCtx.createOscillator();
-          const bassGain = audioCtx.createGain();
-          const bFreq = track.bass[Math.floor(bgmStep / 2) % track.bass.length];
-
-          bassOsc.type = "sine";
-          bassOsc.frequency.setValueAtTime(bFreq, now);
-          bassGain.gain.setValueAtTime(0.08 * BGM_BOOST, now);
-          bassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-
-          bassOsc.connect(bassGain);
-          bassGain.connect(bgmGainNode); // 🎶 Connected strictly to BGM Node
-          bassOsc.start(now);
-          bassOsc.stop(now + 0.24);
-        }
-
-        bgmStep++;
-      } catch (e) {}
-    }, track.speed);
+function retryBgm() {
+  if (bgmWanted && customAudioPlayer.paused) {
+    try {
+      const p = customAudioPlayer.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
   }
 }
 
+function startBGM() {
+  stopBGM();
+  const selectedType = els.bgmSelect ? els.bgmSelect.value : 'google_original';
+  let url = "";
+
+  if (selectedType === 'custom') {
+    const input = document.getElementById("customBgmUrl");
+    url = input ? input.value.trim() : "";
+  } else {
+    try { url = renderTrackUrl(selectedType); } catch (e) { console.log("BGM render failed:", e); }
+  }
+  if (!url) return;
+
+  bgmWanted = true;
+  customAudioPlayer.loop = true;
+  customAudioPlayer.preload = "auto";
+  customAudioPlayer.src = url;
+  customAudioPlayer.volume = bgmVolume;
+  try {
+    const p = customAudioPlayer.play();
+    if (p && p.catch) p.catch(() => { setTimeout(checkAudioHint, 150); }); // ব্লক হলে "TAP TO ENABLE SOUND" দেখাবে
+  } catch (e) {}
+}
+
 function stopBGM() {
+  bgmWanted = false;
   try { customAudioPlayer.pause(); } catch (e) {}
   if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
+
+customAudioPlayer.addEventListener("pause", () => setTimeout(checkAudioHint, 200));
+customAudioPlayer.addEventListener("playing", () => setTimeout(checkAudioHint, 50));
 
 // 🔊 গেমের সাউন্ড এফেক্টস (সাপ ঘোরা ও খাওয়ার শব্দ দ্বিগুণ লাউড ও স্বাধীন)
 function playSound(type) {
