@@ -1565,7 +1565,8 @@ const eatenGhosts = [];     // খাওয়া খাবার মাথা �
 // 🎭 চলার স্টাইল (প্রতিটা খাবারের জন্য র‍্যান্ডম একটা):
 //  smooth = লম্বা সোজা + বড় বাঁক | stair = সিঁড়ির মতো ডানে-বাঁয়ে | wild = এলোমেলো
 //  wave   = সাপের মতো আঁকাবাঁকা (বেঁকে বেঁকে) | curl = কুণ্ডলী পাকিয়ে গোল হয়ে ঘুরে | edge = দেয়াল ঘেঁষে টহল দিয়ে
-const AI_STYLES = ["smooth", "stair", "wild", "wave", "wave", "curl", "edge"];
+//  uturn  = U U স্টাইল: সোজা গিয়ে হেয়ারপিন U-টার্ন নিয়ে উল্টো দিকে ফেরে, আবার U-টার্ন... তারপর খাবারে
+const AI_STYLES = ["smooth", "stair", "wild", "wave", "wave", "curl", "edge", "uturn", "uturn"];
 const AI_STYLES_CALM = ["smooth", "stair"]; // সাপ খুব লম্বা হলে নিরাপদ থাকতে শান্ত স্টাইল
 
 function dirIndex(d) {
@@ -1729,6 +1730,72 @@ function pathSafety(cells) {
   return { safe: true, pocket: Math.max(0, emptyTotal - reach) };
 }
 
+// 🔁 U U স্টাইল: সোজা কয়েক ঘর → হেয়ারপিন U-টার্ন → উল্টো দিকে সোজা → আবার U-টার্ন ... শেষে খাবারে
+function uPath(hx, hy, tx, ty, d0) {
+  const inB = (x, y) => x >= 0 && x < cols && y >= 0 && y < rows;
+  const sd0 = DIRS[d0];
+  let ld;
+  if (sd0.x !== 0) ld = ty !== hy ? { x: 0, y: Math.sign(ty - hy) } : { x: 0, y: hy < rows / 2 ? 1 : -1 };
+  else ld = tx !== hx ? { x: Math.sign(tx - hx), y: 0 } : { x: hx < cols / 2 ? 1 : -1, y: 0 };
+
+  let hairpins = 2 + (Math.random() < 0.5 ? 1 : 0);
+  let gap = Math.random() < 0.5 ? 1 : 2;
+  let run = 3 + Math.floor(Math.random() * 3);
+
+  // বোর্ডে না ঢুকলে ছোট করে আবার চেষ্টা
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const cells = [];
+    let x = hx, y = hy, sd = sd0, ok = true;
+    const go = (d, n) => {
+      for (let i = 0; i < n; i++) {
+        x += d.x; y += d.y;
+        if (!inB(x, y)) { ok = false; return; }
+        cells.push({ x, y });
+      }
+    };
+    for (let h = 0; h < hairpins && ok; h++) {
+      go(sd, run);
+      if (ok) go(ld, gap);
+      sd = { x: -sd.x, y: -sd.y };
+    }
+    if (ok) go(sd, run);
+    if (!ok) {
+      if (run > 2) run--; else if (gap > 1) gap--; else if (hairpins > 1) hairpins--; else return null;
+      continue;
+    }
+    // খাবারে পৌঁছে গেলে সেখানেই শেষ; পথে অন্য খাবার পড়লে বাতিল
+    const ti = cells.findIndex(c => c.x === tx && c.y === ty);
+    if (ti >= 0) {
+      const cut = cells.slice(0, ti + 1);
+      for (let i = 0; i < cut.length - 1; i++) if (foods.some(f => f.x === cut[i].x && f.y === cut[i].y)) return null;
+      return cut;
+    }
+    for (const c of cells) if (foods.some(f => f.x === c.x && f.y === c.y)) return null;
+
+    // শেষ দিক থেকে খাবারে যাওয়ার L-আকৃতির রাস্তা (দুই ভাবে চেষ্টা)
+    const last = { x: sd.x, y: sd.y };
+    const tries = [["x", "y"], ["y", "x"]];
+    for (const order of tries) {
+      const rest = [];
+      let cx = x, cy = y;
+      for (const axis of order) {
+        const target = axis === "x" ? tx : ty;
+        while ((axis === "x" ? cx : cy) !== target) {
+          const sg = Math.sign(target - (axis === "x" ? cx : cy));
+          if (axis === "x") cx += sg; else cy += sg;
+          rest.push({ x: cx, y: cy });
+        }
+      }
+      if (!rest.length) continue;
+      const f = { x: rest[0].x - x, y: rest[0].y - y };
+      if (f.x === -last.x && f.y === -last.y) continue; // উল্টো দিকে যাওয়া যায় না
+      return cells.concat(rest);
+    }
+    return null;
+  }
+  return null;
+}
+
 // 🐍 সাপের মতো আঁকাবাঁকা (sine ঢেউ) রাস্তা: খাবারের দিকে সোজা না গিয়ে একবার এদিক একবার ওদিক বেঁকে বেঁকে যায়
 function wavePath(hx, hy, tx, ty, d0) {
   const dx = tx - hx, dy = ty - hy;
@@ -1779,6 +1846,10 @@ function planPath(risky) {
           let d0 = dirIndex(direction); if (d0 < 0) d0 = 1;
           const w = wavePath(snake[0].x, snake[0].y, f.x, f.y, d0);
           if (w && w.length <= cells.length + 6 && pathValid(w, true)) cells = w;
+        } else if (st === "uturn") {
+          let d0 = dirIndex(direction); if (d0 < 0) d0 = 1;
+          const u = uPath(snake[0].x, snake[0].y, f.x, f.y, d0);
+          if (u && u.length <= cells.length + 16 && pathValid(u, true)) cells = u;
         }
         cands.push({ f, cells });
       }
