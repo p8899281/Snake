@@ -382,12 +382,30 @@ function retryBgm() {
   }
 }
 
-// 🔗 লিংক ঠিক করে নেওয়া: GitHub (raw/blob), Dropbox — যেন সরাসরি অডিও ফাইলই পাওয়া যায়
+// 🔗 লিংক ঠিক করে নেওয়া: ফাইলের নাম (song.mp3), ফোল্ডার পাথ (music/song.mp3), GitHub (raw/blob),
+// Dropbox, Google Drive — সব যেন সরাসরি অডিও ফাইলের লিংক হয়ে যায়
 function normalizeMusicUrl(input) {
   let u = (input || "").trim().replace(/^["'<]+|["'>]+$/g, "");
   if (!u) return "";
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = "https://" + u;
   try {
+    // Google Drive শেয়ার লিংক → সরাসরি ডাউনলোড লিংক
+    const gd = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]+)/i);
+    if (gd) return "https://drive.google.com/uc?export=download&id=" + gd[1];
+
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) {
+      if (u.startsWith("//")) {
+        u = "https:" + u;
+      } else {
+        // স্কিম ছাড়া: ডোমেইন (example.com/a.mp3, localhost:8000/a.mp3) নাকি এই সাইটেরই ফাইল (song.mp3, music/song.mp3)?
+        const first = u.split("/")[0];
+        const looksLikeHost = u.includes("/") && /^(localhost|\d{1,3}(\.\d{1,3}){3}|[\w-]+(\.[\w-]+)*\.[a-z]{2,})(:\d+)?$/i.test(first);
+        if (looksLikeHost) {
+          u = (/^(localhost|\d{1,3}(\.\d{1,3}){3})/i.test(first) ? "http://" : "https://") + u;
+        } else {
+          return new URL(u, location.href).toString(); // এই পেজের পাশের ফাইল (যেমন GitHub repo-তে আপলোড করা mp3)
+        }
+      }
+    }
     const url = new URL(u);
     if (url.hostname === "github.com" || url.hostname === "www.github.com") {
       // github.com/user/repo/raw/...  বা  /blob/...  →  raw.githubusercontent.com/user/repo/...  (রিডাইরেক্ট ছাড়া সরাসরি)
@@ -402,6 +420,11 @@ function normalizeMusicUrl(input) {
     if (location.protocol === "https:" && url.protocol === "http:") url.protocol = "https:"; // mixed-content এড়াতে
     return url.toString();
   } catch (e) { return u; }
+}
+
+// ইউটিউব/স্পটিফাই-এর মতো সাইটের লিংক সরাসরি অডিও ফাইল নয়, ওগুলো এখানে বাজানো যায় না
+function unsupportedMusicSite(url) {
+  return /(^|\/\/|\.)(youtube\.com|youtu\.be|spotify\.com|soundcloud\.com|music\.apple\.com|jiosaavn\.com|gaana\.com|wynk\.in|facebook\.com|instagram\.com)(\/|:|$)/i.test(url);
 }
 
 let bgmToken = 0;          // পুরোনো অ্যাসিঙ্ক কলব্যাক বাতিল করতে
@@ -516,9 +539,20 @@ function startBGM() {
 
   if (selectedType === 'custom') {
     const input = document.getElementById("customBgmUrl");
-    const url = normalizeMusicUrl(input ? input.value : "");
+    const raw = input ? input.value.trim() : "";
+    const url = normalizeMusicUrl(raw);
     if (!url) {
       showMusicToast("⚠️ No MP3 link pasted. Playing default music.", 5000);
+      playBuiltinTrack("google_original");
+      return;
+    }
+    if (/^[a-z]:[\\/]/i.test(raw)) {
+      showMusicToast("⚠️ Computer file paths don't work. Upload the mp3 next to index.html (e.g. on GitHub) and type just its file name, like song.mp3. Playing default music.", 9000);
+      playBuiltinTrack("google_original");
+      return;
+    }
+    if (unsupportedMusicSite(url)) {
+      showMusicToast("⚠️ YouTube / Spotify links can't be played here. Use a direct .mp3 link, or type the name of an mp3 uploaded next to index.html. Playing default music.", 9000);
       playBuiltinTrack("google_original");
       return;
     }
@@ -860,9 +894,23 @@ function drawSmoothSnake(col, t) {
   if (Math.hypot(hx - out[jj].x, hy - out[jj].y) > 0.5) ang = Math.atan2(hy - out[jj].y, hx - out[jj].x);
   const ca = Math.cos(ang), sa = Math.sin(ang);
 
-  // 👅 লাল চেরা জিভ
+  // 👄 মুখ: খাবার সামনে এলে হাঁ করে (চোম্প!), নইলে ছোট্ট হাসি; জিভ মুখের ভেতর থেকে বেরোয়
+  let mouthOpen = 0;
+  {
+    const targets = foods.concat(eatenGhosts);
+    for (const f of targets) {
+      const fx = offsetX + f.x * cs + cs / 2, fy = offsetY + f.y * cs + cs / 2;
+      const vx = fx - hx, vy = fy - hy;
+      const dist = Math.hypot(vx, vy);
+      if (dist < 0.5 || dist > cs * 1.9) { if (dist <= 0.5) mouthOpen = Math.max(mouthOpen, 1); continue; }
+      if ((vx * ca + vy * sa) / dist < 0.5) continue; // সামনের দিকে না থাকলে নয়
+      mouthOpen = Math.max(mouthOpen, Math.min(1, (cs * 1.9 - dist) / (cs * 1.3)));
+    }
+  }
+
+  // 👅 লাল চেরা জিভ (মুখ বন্ধ থাকলে মাঝে মাঝে বেরোয়)
   const tongueCycle = (Date.now() % 2400);
-  if (tongueCycle < 500) {
+  if (tongueCycle < 500 && mouthOpen < 0.15) {
     const prog = Math.sin((tongueCycle / 500) * Math.PI);
     const tongueLen = cs * 0.55 * prog;
     const forkLen = cs * 0.18 * prog;
@@ -889,9 +937,37 @@ function drawSmoothSnake(col, t) {
   ctx.arc(hx, hy, cs * 0.44, 0, Math.PI * 2);
   ctx.fill();
 
+  // মুখ আঁকা (মাথার সামনের দিকে)
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.rotate(ang);
+  if (mouthOpen > 0.12) {
+    const o = mouthOpen;
+    ctx.fillStyle = "#7a0c2e";
+    ctx.strokeStyle = col.line;
+    ctx.lineWidth = Math.max(1.5, cs * 0.04);
+    ctx.beginPath();
+    ctx.ellipse(cs * 0.30, 0, cs * (0.06 + 0.15 * o), cs * (0.07 + 0.19 * o), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#ff6f91"; // হাঁ-এর ভেতরে জিভ
+    ctx.beginPath();
+    ctx.ellipse(cs * 0.29, 0, cs * 0.07 * o, cs * 0.1 * o, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = "rgba(25, 6, 16, 0.85)";
+    ctx.lineWidth = Math.max(2, cs * 0.06);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cs * 0.24, -cs * 0.17);
+    ctx.quadraticCurveTo(cs * 0.44, 0, cs * 0.24, cs * 0.17);
+    ctx.stroke();
+  }
+  ctx.restore();
+
   // 👀 চোখ
   const eyeR = cs * 0.22, pupilR = cs * 0.11, highlightR = cs * 0.045;
-  const ef = cs * 0.14, es = cs * 0.24;
+  const ef = cs * 0.02, es = cs * 0.25;
   const eyes = [[ef, -es], [ef, es]].map(([fx, fy]) => ({ x: hx + ca * fx - sa * fy, y: hy + sa * fx + ca * fy }));
 
   ctx.fillStyle = "#ffffff";
